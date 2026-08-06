@@ -9,13 +9,8 @@ import { useRef } from "react";
 import InventoryShareCard from "../../components/reports/InventoryShareCard";
 export default function InventoryPage() {
 
-  const employeeId = Number(
-    sessionStorage.getItem("employeeId")
-  );
-
-  const employee = JSON.parse(
-    sessionStorage.getItem("employee") || "null"
-  );
+  const [employeeId, setEmployeeId] = useState(0);
+const [employee, setEmployee] = useState<any>(null);
 
   const [jobs, setJobs] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
@@ -108,27 +103,37 @@ const maintenanceItems = [
   "Batteries",
 ];
 
-  useEffect(() => {
+ useEffect(() => {
 
-    async function load() {
+  if (typeof window === "undefined") return;
 
-   const schedule =
-  await getTodayCleanerSchedule(employeeId);
+  const id = Number(
+    sessionStorage.getItem("employeeId") || "0"
+  );
 
-const propertyData =
-  await getProperties();
+  const emp = JSON.parse(
+    sessionStorage.getItem("employee") || "null"
+  );
 
-      setJobs(schedule);
+  setEmployeeId(id);
+  setEmployee(emp);
 
-      setProperties(propertyData);
-      
+  async function load() {
 
-    }
+    const schedule =
+      await getTodayCleanerSchedule(id);
 
-    load();
+    const propertyData =
+      await getProperties();
 
-  }, []);
+    setJobs(schedule);
+    setProperties(propertyData);
 
+  }
+
+  load();
+
+}, []);
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white py-8 px-4">
 
