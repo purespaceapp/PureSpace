@@ -73,14 +73,7 @@ if (!id) {
   window.location.href = "/cleaner-login";
   return;
 }
-if (!employeeId) {
 
-  window.location.href =
-    "/cleaner-login";
-
-  return;
-
-}
     async function load() {
 const employeeData = JSON.parse(
 
@@ -98,7 +91,7 @@ setEmployee(employeeData);
 
 const receipts =
   await getApprovedCleanerReceipts(id);
-  
+
 setApprovedReceipts(receipts);
 
       const jobsWithExtras =
