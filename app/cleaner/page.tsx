@@ -11,13 +11,8 @@ export default function CleanerPage() {
   // ⚠️ Temporal
   // Luego iniciaremos sesión y este número saldrá automáticamente.
   
-const employeeId = Number(
+const [employeeId, setEmployeeId] = useState(0);
 
-  sessionStorage.getItem(
-    "employeeId"
-  )
-
-);
   const [jobs, setJobs] = useState<any[]>([]);
   const [employee, setEmployee] = useState<any>(null);
   const jobsByDate = jobs.reduce(
@@ -68,6 +63,16 @@ const grandTotal =
   ) + receiptTotal;
 
   useEffect(() => {
+    const id = Number(
+  sessionStorage.getItem("employeeId") || "0"
+);
+
+setEmployeeId(id);
+
+if (!id) {
+  window.location.href = "/cleaner-login";
+  return;
+}
 if (!employeeId) {
 
   window.location.href =
@@ -89,12 +94,11 @@ setEmployee(employeeData);
       setProperties(propertyData);
 
       const schedule =
-        await getCleanerSchedule(employeeId);
-        
+  await getCleanerSchedule(id);
 
 const receipts =
-  await getApprovedCleanerReceipts(employeeId);
-
+  await getApprovedCleanerReceipts(id);
+  
 setApprovedReceipts(receipts);
 
       const jobsWithExtras =
