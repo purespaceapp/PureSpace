@@ -29,6 +29,17 @@ import { getEmployees } from "@/lib/employees";
 import { getReceiptsByProperty } from "@/lib/receipts";
 import { getMaintenanceByProperty } from "@/lib/maintenance";
 
+function formatScheduleDate(value: unknown) {
+  if (!value) return "Date unavailable";
+
+  const date = new Date(String(value));
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleDateString();
+}
 export default function OwnerPropertyPage() {
 
   const router = useRouter();
@@ -661,11 +672,7 @@ async function saveAirbnbConnection() {
                           <div>
 
                             <p className="font-bold text-slate-800">
-
-                              {new Date(
-                                schedule.date
-                              ).toLocaleDateString()}
-
+{formatScheduleDate(schedule.cleaning_date)}
                             </p>
 
                             <p className="text-slate-500 mt-2">
@@ -760,9 +767,7 @@ async function saveAirbnbConnection() {
 
                           <p className="font-bold text-slate-800">
 
-                            {new Date(
-                              schedule.date
-                            ).toLocaleDateString()}
+                           {formatScheduleDate(schedule.cleaning_date)}
 
                           </p>
 
