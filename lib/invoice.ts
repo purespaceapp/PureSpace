@@ -20,17 +20,16 @@ async function getLogo() {
 
 }
 export async function downloadInvoice(
-
   employee: any,
-
   jobs: any[],
-
   properties: any[],
-
   grandTotal: number,
-
-  approvedReceipts: any[]
-
+  approvedReceipts: any[],
+  billingPeriod: {
+    start: string;
+    end: string;
+    label: string;
+  }
 ) {
   const logo = await getLogo();
 
@@ -117,20 +116,11 @@ doc.text(
 );
 
 doc.text("Period:",120,66);
-const startDate =
-  jobs.length > 0
-    ? jobs[0].cleaning_date
-    : "-";
-
-const endDate =
-  jobs.length > 0
-    ? jobs[jobs.length - 1].cleaning_date
-    : "-";
 
 doc.text(
-  `${startDate} - ${endDate}`,
-  145,
-  66
+billingPeriod.label,
+145,
+66
 );
 
 doc.text("Invoice:",120,74);

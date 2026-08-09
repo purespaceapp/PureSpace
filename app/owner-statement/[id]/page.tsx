@@ -14,7 +14,7 @@ import {
 import { getReceiptsByProperty } from "@/lib/receipts";
 
 import InvoicePDF from "@/app/components/InvoicePDF";
-
+import { getCurrentBillingPeriod } from "@/lib/billingPeriod";
 export default function OwnerStatementPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -36,6 +36,9 @@ export default function OwnerStatementPage() {
   const [downloading, setDownloading] =
     useState(false);
 
+    const billingPeriod =
+  getCurrentBillingPeriod();
+  
   const cleaningTotal = schedules.reduce(
     (sum, schedule) =>
       sum + Number(schedule.company_charge),
@@ -46,6 +49,8 @@ export default function OwnerStatementPage() {
     async function load() {
       const ownerId =
         sessionStorage.getItem("ownerId");
+
+       
 
       if (!ownerId || !id) return;
 
@@ -59,29 +64,51 @@ export default function OwnerStatementPage() {
 
       setProperty(selected);
 
-      const completed =
-        await getCompletedSchedulesByProperty(
-          Number(id)
-        );
+    const completed =
+  await getCompletedSchedulesByProperty(
+    Number(id)
+  );
 
-      setSchedules(completed);
+const periodSchedules =
+  completed.filter((schedule) => {
+    const date = String(
+      schedule.cleaning_date
+    ).slice(0, 10);
+
+    return (
+      date >= billingPeriod.start &&
+      date <= billingPeriod.end
+    );
+  });
+
+setSchedules(periodSchedules);
 
       const catalog = await getExtras();
 
       setExtrasCatalog(catalog);
 
-      const receipts =
-        await getReceiptsByProperty(Number(id));
+   const receipts =
+  await getReceiptsByProperty(Number(id));
 
-      setApprovedReceipts(receipts);
+const periodReceipts =
+  receipts.filter((receipt) => {
+    const date = String(
+      receipt.purchase_date
+    ).slice(0, 10);
+
+    return (
+      date >= billingPeriod.start &&
+      date <= billingPeriod.end
+    );
+  });
+
+setApprovedReceipts(periodReceipts);
 
       const map: Record<number, any[]> = {};
-
-      for (const schedule of completed) {
-        map[schedule.id] =
-          await getScheduleExtras(schedule.id);
-      }
-
+for (const schedule of periodSchedules) {
+  map[schedule.id] =
+    await getScheduleExtras(schedule.id);
+}
       setExtrasMap(map);
     }
 
@@ -100,6 +127,7 @@ export default function OwnerStatementPage() {
           extrasCatalog={extrasCatalog}
           cleaningTotal={cleaningTotal}
           approvedReceipts={approvedReceipts}
+          billingPeriod={billingPeriod}
         />
       ).toBlob();
 

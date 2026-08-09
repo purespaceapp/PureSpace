@@ -14,8 +14,12 @@ type Props = {
   extrasCatalog: any[];
   cleaningTotal: number;
   approvedReceipts: any[];
+  billingPeriod: {
+    start: string;
+    end: string;
+    label: string;
+  };
 };
-
 const styles = StyleSheet.create({
   page: {
     padding: 40,
@@ -177,6 +181,7 @@ export default function InvoicePDF({
   extrasCatalog,
   cleaningTotal,
   approvedReceipts,
+  billingPeriod,
 }: Props) {
 
   const expensesTotal = approvedReceipts.reduce(
@@ -270,10 +275,9 @@ PS-{String(property.id).padStart(5,"0")}
       </Text>
 
       <Text style={styles.rowValue}>
-        {new Date().toLocaleString("en-US",{
-          month:"long",
-          year:"numeric",
-        })}
+       
+       {billingPeriod.label}
+       
       </Text>
 
     </View>

@@ -6,6 +6,7 @@ import { getCleanerSchedule } from "@/lib/cleaner";
 import { getScheduleExtras } from "@/lib/extras";
 import { getProperties } from "@/lib/properties";
 import { getApprovedCleanerReceipts } from "@/lib/receipts";
+import { getCurrentBillingPeriod } from "@/lib/billingPeriod";
 export default function CleanerPage() {
 
   // ⚠️ Temporal
@@ -15,6 +16,7 @@ const [employeeId, setEmployeeId] = useState(0);
 
   const [jobs, setJobs] = useState<any[]>([]);
   const [employee, setEmployee] = useState<any>(null);
+  const billingPeriod = getCurrentBillingPeriod();
   const jobsByDate = jobs.reduce(
     
     
@@ -74,30 +76,55 @@ if (!id) {
   return;
 }
 
-    async function load() {
-const employeeData = JSON.parse(
+  async function load() {
 
-  sessionStorage.getItem("employee") || "null"
+  const employeeData = JSON.parse(
+    sessionStorage.getItem("employee") || "null"
+  );
 
-);
+  setEmployee(employeeData);
 
-setEmployee(employeeData);
-      const propertyData = await getProperties();
+  const propertyData =
+    await getProperties();
 
-      setProperties(propertyData);
+  setProperties(propertyData);
 
-      const schedule =
-  await getCleanerSchedule(id);
+  const schedule =
+    await getCleanerSchedule(id);
+
+  const periodJobs =
+    schedule.filter((job) => {
+      const date = String(
+        job.cleaning_date
+      ).slice(0, 10);
+
+      return (
+        date >= billingPeriod.start &&
+        date <= billingPeriod.end
+      );
+    });
 
 const receipts =
   await getApprovedCleanerReceipts(id);
 
-setApprovedReceipts(receipts);
+const periodReceipts =
+  receipts.filter((receipt) => {
+    const date = String(
+      receipt.purchase_date
+    ).slice(0, 10);
+
+    return (
+      date >= billingPeriod.start &&
+      date <= billingPeriod.end
+    );
+  });
+
+setApprovedReceipts(periodReceipts);
 
       const jobsWithExtras =
         await Promise.all(
 
-          schedule.map(async (job) => ({
+         periodJobs.map(async (job) => ({
 
             ...job,
 
@@ -331,12 +358,13 @@ setApprovedReceipts(receipts);
 
   <button
     onClick={() =>
-      downloadInvoice(
+   downloadInvoice(
   employee,
   jobs,
   properties,
   grandTotal,
-  approvedReceipts
+  approvedReceipts,
+  billingPeriod
 )
     }
     className="w-full bg-[#2E7BBE] hover:bg-[#23649D] text-white py-4 rounded-2xl text-lg font-semibold shadow-lg"
