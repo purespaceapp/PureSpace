@@ -32,6 +32,17 @@ export async function resolveMaintenanceIssue(id: number) {
   if (error) throw error;
 
 }
+export async function reopenMaintenanceIssue(id: number) {
+  const { error } = await supabase
+    .from("maintenance_issues")
+    .update({
+      status: "Open",
+      resolved_at: null,
+    })
+    .eq("id", id);
+
+  if (error) throw error;
+}
 export async function getMaintenanceByProperty(propertyId: number) {
 
   const { data, error } = await supabase
