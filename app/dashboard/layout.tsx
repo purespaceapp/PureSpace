@@ -9,12 +9,13 @@ import { supabase } from "@/lib/supabase";
 
 import {
   LayoutDashboard,
-  Building2,
-  Users,
-  CalendarDays,
-  Receipt,
-  UserRound,
-  LogOut,
+Building2,
+Users,
+CalendarDays,
+Receipt,
+UserRound,
+LogOut,
+Wrench,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -175,6 +176,11 @@ export default function DashboardLayout({
               "Schedule",
               <CalendarDays className="h-5 w-5" />
             )}
+            {menuItem(
+  "/dashboard/maintenance",
+  "Maintenance",
+  <Wrench className="h-5 w-5" />
+)}
 
           </div>
 

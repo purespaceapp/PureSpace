@@ -12,7 +12,8 @@ export async function getSchedules() {
     return [];
   }
 
-  return data;
+  console.table(data);
+return data;
 }
 export async function getSchedulesByProperty(
   propertyId: number
