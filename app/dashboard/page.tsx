@@ -239,7 +239,7 @@ export default function DashboardPage() {
 
     <div className="mt-6">
 
-      <MaintenancePanel />
+<MaintenancePanel issues={issues} />
 
     </div>
 
