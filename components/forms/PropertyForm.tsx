@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 import {
   saveProperty,
@@ -69,6 +70,11 @@ const [notes, setNotes] = useState(
   property?.notes || ""
 );
 const [loading, setLoading] = useState(false);
+const [imageFile, setImageFile] = useState<File | null>(null);
+
+const [imagePreview, setImagePreview] = useState(
+  property?.property_images?.[0] || ""
+);
 useEffect(() => {
 
   async function loadOwners() {
@@ -127,10 +133,63 @@ const propertyData = {
 
 };
 
+let savedProperty;
+
 if (property) {
-  await updateProperty(property.id, propertyData);
+  savedProperty = await updateProperty(
+    property.id,
+    propertyData
+  );
 } else {
-  await saveProperty(propertyData);
+  savedProperty = await saveProperty(
+    propertyData
+  );
+}
+
+if (imageFile) {
+
+  const extension =
+    imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+
+  const filePath =
+    `${savedProperty.id}/${Date.now()}.${extension}`;
+
+  const { error: uploadError } =
+    await supabase.storage
+      .from("property-images")
+      .upload(
+        filePath,
+        imageFile,
+        {
+          upsert: true,
+          contentType: imageFile.type,
+        }
+      );
+
+  if (uploadError) {
+    console.error(
+      "Image upload error:",
+      uploadError
+    );
+
+    throw uploadError;
+  }
+
+  const { data: publicUrlData } =
+    supabase.storage
+      .from("property-images")
+      .getPublicUrl(filePath);
+
+  const imageUrl =
+    publicUrlData.publicUrl;
+
+  await updateProperty(
+    savedProperty.id,
+    {
+      ...propertyData,
+      property_images: [imageUrl],
+    }
+  );
 }
 
     await onSaved();
@@ -262,6 +321,38 @@ if (property) {
         />
 
         
+<div className="col-span-2">
+
+  <label className="block text-sm font-semibold text-slate-700 mb-2">
+    Property Image
+  </label>
+
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => {
+      const file = e.target.files?.[0] || null;
+
+      setImageFile(file);
+
+      if (file) {
+        setImagePreview(URL.createObjectURL(file));
+      }
+    }}
+    className="w-full border rounded-xl p-3"
+  />
+
+  {imagePreview && (
+    <div className="mt-4">
+      <img
+        src={imagePreview}
+        alt="Property preview"
+        className="w-full max-w-md h-48 object-cover rounded-2xl border"
+      />
+    </div>
+  )}
+
+</div>
 
         <textarea
           value={notes}
