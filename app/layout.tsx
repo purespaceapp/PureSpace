@@ -15,7 +15,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PureSpace | Property Management Platform",
   description: "PureSpace Property Management Platform",
+  icons: {
+    icon: "/icono.png",
+  },
 };
+
+
 
 export default function RootLayout({
   children,
