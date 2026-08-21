@@ -28,18 +28,29 @@ import { getSchedulesByProperty } from "@/lib/schedule";
 import { getEmployees } from "@/lib/employees";
 import { getReceiptsByProperty } from "@/lib/receipts";
 import { getMaintenanceByProperty } from "@/lib/maintenance";
-
 function formatScheduleDate(value: unknown) {
   if (!value) return "Date unavailable";
 
-  const date = new Date(String(value));
+  const stringValue = String(value);
+
+  // Treat YYYY-MM-DD as a calendar date, without timezone conversion.
+  const match = stringValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (match) {
+    const [, year, month, day] = match;
+
+    return `${Number(day)}/${Number(month)}/${year}`;
+  }
+
+  const date = new Date(stringValue);
 
   if (Number.isNaN(date.getTime())) {
-    return String(value);
+    return stringValue;
   }
 
   return date.toLocaleDateString();
 }
+
 export default function OwnerPropertyPage() {
 
   const router = useRouter();

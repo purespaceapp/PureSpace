@@ -453,13 +453,27 @@ export default function OwnerHomePage() {
 
                 <div className="h-3 bg-gradient-to-r from-[#2E7BBE] via-[#4C95E7] to-[#76C3FF]" />
 
-                {/* Image */}
+                {/* Property Image */}
 
-                <div className="h-44 bg-slate-100 flex items-center justify-center">
+<div className="h-44 bg-slate-100 overflow-hidden">
 
-                  <Home className="w-16 h-16 text-slate-300" />
+  {property.property_images?.[0] ? (
 
-                </div>
+    <img
+      src={property.property_images[0]}
+      alt={property.name}
+      className="w-full h-full object-cover"
+    />
+
+  ) : (
+
+    <div className="w-full h-full flex items-center justify-center">
+      <Home className="w-16 h-16 text-slate-300" />
+    </div>
+
+  )}
+
+</div>
 
                 {/* Content */}
 

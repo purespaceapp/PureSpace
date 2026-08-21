@@ -135,7 +135,7 @@ export default function PropertiesPage() {
 
             </h1>
 
-            <p className="mt-2 text-lg text-slate-500">
+            <p className="mt-2 text-lg text-slate-600">
 
               Manage all your properties from one place.
 
@@ -165,7 +165,7 @@ export default function PropertiesPage() {
 
           <div className="relative">
 
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
 
             <input
               value={search}
@@ -188,7 +188,7 @@ export default function PropertiesPage() {
 
               <div>
 
-                <p className="text-slate-500">
+                <p className="text-slate-600">
 
                   Total Properties
 
@@ -218,7 +218,7 @@ export default function PropertiesPage() {
 
               <div>
 
-                <p className="text-slate-500">
+                <p className="text-slate-600">
 
                   Active
 
@@ -248,7 +248,7 @@ export default function PropertiesPage() {
 
               <div>
 
-                <p className="text-slate-500">
+                <p className="text-slate-600">
 
                   Airbnb Connected
 
@@ -278,7 +278,7 @@ export default function PropertiesPage() {
 
               <div>
 
-                <p className="text-slate-500">
+                <p className="text-slate-600">
 
                   Avg Company Price
 
@@ -319,7 +319,7 @@ export default function PropertiesPage() {
 
               </h2>
 
-              <p className="mt-3 text-slate-500">
+              <p className="mt-3 text-slate-600">
 
                 Add your first property or change your search.
 
@@ -376,7 +376,7 @@ export default function PropertiesPage() {
 
                         <div>
 
-                          <p className="text-xs uppercase text-slate-400">
+                          <p className="text-xs uppercase text-slate-500">
 
                             Owner
 
@@ -398,7 +398,7 @@ export default function PropertiesPage() {
 
                         <div>
 
-                          <p className="text-xs uppercase text-slate-400">
+                          <p className="text-xs uppercase text-slate-500">
 
                             Address
 
@@ -420,7 +420,7 @@ export default function PropertiesPage() {
 
                         <div>
 
-                          <p className="text-xs uppercase text-slate-400">
+                          <p className="text-xs uppercase text-slate-500">
 
                             Company Price
 
@@ -442,7 +442,7 @@ export default function PropertiesPage() {
 
                         <div>
 
-                          <p className="text-xs uppercase text-slate-400">
+                          <p className="text-xs uppercase text-slate-500">
 
                             Cleaner Pay
 
@@ -510,7 +510,7 @@ export default function PropertiesPage() {
 
                   <div>
 
-                    <p className="text-xs uppercase text-slate-400">
+                    <p className="text-xs uppercase text-slate-500">
 
                       Airbnb Listing
 
@@ -526,7 +526,7 @@ export default function PropertiesPage() {
 
                   <div>
 
-                    <p className="text-xs uppercase text-slate-400">
+                    <p className="text-xs uppercase text-slate-500">
 
                       Last Sync
 
@@ -542,7 +542,7 @@ export default function PropertiesPage() {
 
                   <div>
 
-                    <p className="text-xs uppercase text-slate-400">
+                    <p className="text-xs uppercase text-slate-500">
 
                       Calendar
 
@@ -578,7 +578,7 @@ export default function PropertiesPage() {
                 setShowForm(false);
                 setEditingProperty(null);
               }}
-              className="absolute right-6 top-6 text-3xl text-slate-400 transition hover:text-red-500"
+              className="absolute right-6 top-6 text-3xl text-slate-500 transition hover:text-red-500"
             >
               ×
             </button>
@@ -612,7 +612,7 @@ export default function PropertiesPage() {
 
             <button
               onClick={() => setShowView(false)}
-              className="absolute right-6 top-6 text-3xl text-slate-400 transition hover:text-red-500"
+              className="absolute right-6 top-6 text-3xl text-slate-500 transition hover:text-red-500"
             >
               ×
             </button>
@@ -627,36 +627,36 @@ export default function PropertiesPage() {
 
               <div>
 
-                <p className="text-xs uppercase text-slate-400">Owner</p>
+                <p className="text-xs uppercase text-slate-500">Owner</p>
                 <p className="mb-5 text-lg font-semibold">{selectedProperty.owner}</p>
 
-                <p className="text-xs uppercase text-slate-400">Address</p>
+                <p className="text-xs uppercase text-slate-500">Address</p>
                 <p className="mb-5 text-lg">{selectedProperty.address}</p>
 
-                <p className="text-xs uppercase text-slate-400">Email</p>
+                <p className="text-xs uppercase text-slate-500">Email</p>
                 <p className="mb-5">{selectedProperty.email || "-"}</p>
 
-                <p className="text-xs uppercase text-slate-400">Phone</p>
+                <p className="text-xs uppercase text-slate-500">Phone</p>
                 <p>{selectedProperty.phone || "-"}</p>
 
               </div>
 
               <div>
 
-                <p className="text-xs uppercase text-slate-400">Company Price</p>
+                <p className="text-xs uppercase text-slate-500">Company Price</p>
                 <p className="mb-5 text-lg font-semibold">
                   ${selectedProperty.company_price}
                 </p>
 
-                <p className="text-xs uppercase text-slate-400">Cleaner Pay</p>
+                <p className="text-xs uppercase text-slate-500">Cleaner Pay</p>
                 <p className="mb-5 text-lg font-semibold">
                   ${selectedProperty.cleaner_price}
                 </p>
 
-                <p className="text-xs uppercase text-slate-400">Door Code</p>
+                <p className="text-xs uppercase text-slate-500">Door Code</p>
                 <p className="mb-5">{selectedProperty.door_code || "-"}</p>
 
-                <p className="text-xs uppercase text-slate-400">WiFi</p>
+                <p className="text-xs uppercase text-slate-500">WiFi</p>
                 <p>
                   {selectedProperty.wifi_name || "-"}
                   {selectedProperty.wifi_password
@@ -672,7 +672,7 @@ export default function PropertiesPage() {
 
               <div>
 
-                <p className="text-xs uppercase text-slate-400">
+                <p className="text-xs uppercase text-slate-500">
 
                   Airbnb Listing
 
@@ -688,7 +688,7 @@ export default function PropertiesPage() {
 
               <div>
 
-                <p className="text-xs uppercase text-slate-400">
+                <p className="text-xs uppercase text-slate-500">
 
                   Airbnb Calendar
 
@@ -706,7 +706,7 @@ export default function PropertiesPage() {
 
             <div className="mt-10">
 
-              <p className="text-xs uppercase text-slate-400">
+              <p className="text-xs uppercase text-slate-500">
 
                 Notes
 
