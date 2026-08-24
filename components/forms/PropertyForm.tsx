@@ -141,58 +141,39 @@ if (property) {
     propertyData
   );
 } else {
-  savedProperty = await saveProperty(
-    propertyData
-  );
+  savedProperty = await saveProperty(propertyData);
 }
 
-if (imageFile) {
+if (imageFile && savedProperty?.id) {
+  const safeFileName = imageFile.name
+    .replace(/[^a-zA-Z0-9.-]/g, "-");
 
-  const extension =
-    imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+  const filePath = `${savedProperty.id}/${Date.now()}-${safeFileName}`;
 
-  const filePath =
-    `${savedProperty.id}/${Date.now()}.${extension}`;
-
-  const { error: uploadError } =
-    await supabase.storage
-      .from("property-images")
-      .upload(
-        filePath,
-        imageFile,
-        {
-          upsert: true,
-          contentType: imageFile.type,
-        }
-      );
+  const { error: uploadError } = await supabase.storage
+    .from("property-images")
+    .upload(filePath, imageFile);
 
   if (uploadError) {
-    console.error(
-      "Image upload error:",
-      uploadError
-    );
-
+    console.error("Image upload error:", uploadError);
     throw uploadError;
   }
 
-  const { data: publicUrlData } =
-    supabase.storage
-      .from("property-images")
-      .getPublicUrl(filePath);
+  const {
+    data: publicUrlData,
+  } = supabase.storage
+    .from("property-images")
+    .getPublicUrl(filePath);
 
-  const imageUrl =
-    publicUrlData.publicUrl;
+  const imageUrl = publicUrlData.publicUrl;
 
-  await updateProperty(
-    savedProperty.id,
-    {
-      ...propertyData,
-      property_images: [imageUrl],
-    }
-  );
+  await updateProperty(savedProperty.id, {
+    ...propertyData,
+    property_images: [imageUrl],
+  });
 }
 
-    await onSaved();
+await onSaved();
 
     onClose();
 

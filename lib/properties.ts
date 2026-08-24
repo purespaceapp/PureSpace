@@ -1,35 +1,9 @@
 import { supabase } from "./supabase";
 
-export async function getProperties(ownerId?: number) {
-
-  let query = supabase
-    .from("properties")
-    .select("*")
-    .order("name");
-
-  if (ownerId) {
-
-    query = query.eq("owner_id", ownerId);
-
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-
-    console.error(error);
-
-    return [];
-
-  }
-
-  return data;
-
-}
-
-export async function saveProperty(property: {
+type PropertyData = {
   name: string;
   owner: string;
+  owner_id?: number;
   address: string;
   email: string;
   phone: string;
@@ -41,8 +15,30 @@ export async function saveProperty(property: {
   whatsapp_group: string;
   inventory_form: string;
   notes: string;
-}) {
+  property_images?: string[];
+};
 
+export async function getProperties(ownerId?: number) {
+  let query = supabase
+    .from("properties")
+    .select("*")
+    .order("name");
+
+  if (ownerId) {
+    query = query.eq("owner_id", ownerId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  return data;
+}
+
+export async function saveProperty(property: PropertyData) {
   const { data, error } = await supabase
     .from("properties")
     .insert([
@@ -60,26 +56,11 @@ export async function saveProperty(property: {
 
   return data;
 }
+
 export async function updateProperty(
   id: number,
-  property: {
-    name: string;
-    owner: string;
-    address: string;
-    email: string;
-    phone: string;
-    door_code: string;
-    wifi_name: string;
-    wifi_password: string;
-    cleaner_price: number;
-    company_price: number;
-    whatsapp_group: string;
-    inventory_form: string;
-    notes: string;
-  }
-  
+  property: PropertyData
 ) {
-  
   const { data, error } = await supabase
     .from("properties")
     .update({
@@ -96,8 +77,8 @@ export async function updateProperty(
 
   return data;
 }
-export async function deleteProperty(id: number) {
 
+export async function deleteProperty(id: number) {
   const { error } = await supabase
     .from("properties")
     .delete()
@@ -107,8 +88,8 @@ export async function deleteProperty(id: number) {
     console.error("Error deleting property:", error);
     throw error;
   }
-
 }
+
 export async function updateAirbnbConnection(
   id: number,
   data: {
@@ -117,7 +98,6 @@ export async function updateAirbnbConnection(
     airbnb_connected: boolean;
   }
 ) {
-
   const { error } = await supabase
     .from("properties")
     .update({
@@ -129,14 +109,11 @@ export async function updateAirbnbConnection(
     .eq("id", id);
 
   if (error) {
-
     console.error(
       "Error updating Airbnb connection:",
       error
     );
 
     throw error;
-
   }
-
 }

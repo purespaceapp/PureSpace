@@ -18,6 +18,10 @@ import {
 
 import { getProperties } from "@/lib/properties";
 import { getMaintenanceIssues } from "@/lib/maintenance";
+import {
+  getSchedules,
+  getCompletedSchedulesByOwner,
+} from "@/lib/schedule";
 
 export default function OwnerHomePage() {
   const router = useRouter();
@@ -25,6 +29,8 @@ export default function OwnerHomePage() {
   const [properties, setProperties] = useState<any[]>([]);
   const [issues, setIssues] = useState<any[]>([]);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [upcomingCleanings, setUpcomingCleanings] = useState<any[]>([]);
+  const [monthlyTotal, setMonthlyTotal] = useState(0);
 
   function handleLogout() {
     sessionStorage.clear();
@@ -34,6 +40,7 @@ export default function OwnerHomePage() {
   useEffect(() => {
     async function load() {
       const ownerId = sessionStorage.getItem("ownerId");
+
 
       if (!ownerId) {
         router.replace("/owner-login");
@@ -45,7 +52,57 @@ export default function OwnerHomePage() {
 
       const maintenance = await getMaintenanceIssues();
       setIssues(maintenance);
+      const schedules = await getSchedules();
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+const ownerPropertyIds = propertyData.map(
+  (property) => Number(property.id)
+);
+
+const upcoming = schedules.filter((schedule: any) => {
+  const cleaningDate = new Date(schedule.cleaning_date);
+  cleaningDate.setHours(0, 0, 0, 0);
+
+  return (
+    cleaningDate >= today &&
+    ownerPropertyIds.includes(Number(schedule.property_id)) &&
+    schedule.status !== "Completed"
+  );
+});
+
+setUpcomingCleanings(upcoming);
+const completedSchedules = await getCompletedSchedulesByOwner(
+  Number(ownerId)
+);
+
+const now = new Date();
+
+const currentMonth = now.getMonth();
+const currentYear = now.getFullYear();
+
+const completedThisMonth = completedSchedules.filter(
+  (schedule: any) => {
+    const cleaningDate = new Date(schedule.cleaning_date);
+
+    return (
+      cleaningDate.getMonth() === currentMonth &&
+      cleaningDate.getFullYear() === currentYear
+    );
+  }
+);
+
+const totalThisMonth = completedThisMonth.reduce(
+  (total: number, schedule: any) => {
+    return total + Number(schedule.properties?.company_price || 0);
+  },
+  0
+);
+
+setMonthlyTotal(totalThisMonth);
     }
+    
 
     load();
   }, [router]);
@@ -209,10 +266,9 @@ export default function OwnerHomePage() {
                   Upcoming Cleanings
                 </p>
 
-                <h2 className="text-5xl font-bold text-slate-800 mt-4">
-                  0
-                </h2>
-
+<h2 className="text-5xl font-bold text-slate-800 mt-4">
+  {upcomingCleanings.length}
+</h2>
               </div>
 
               <div className="w-20 h-20 rounded-3xl bg-green-100 flex items-center justify-center">
@@ -226,8 +282,11 @@ export default function OwnerHomePage() {
           </div>
 
           {/* Open Issues */}
-
-          <div className="group bg-white rounded-[34px] p-8 border border-slate-100 shadow-lg hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 cursor-pointer">
+<div
+  onClick={() => router.push("/owner-maintenance")}
+  className="group bg-white rounded-[34px] p-8 border border-slate-100 shadow-lg hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 cursor-pointer"
+>
+          
 
             <div className="flex items-center justify-between">
 
@@ -265,10 +324,9 @@ export default function OwnerHomePage() {
                   This Month
                 </p>
 
-                <h2 className="text-5xl font-bold text-slate-800 mt-4">
-                  $0
-                </h2>
-
+            <h2 className="text-5xl font-bold text-slate-800 mt-4">
+  ${monthlyTotal.toFixed(2)}
+</h2>
               </div>
 
               <div className="w-20 h-20 rounded-3xl bg-emerald-100 flex items-center justify-center">
