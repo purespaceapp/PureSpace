@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 
 import {
   saveProperty,
@@ -143,36 +142,39 @@ if (property) {
 } else {
   savedProperty = await saveProperty(propertyData);
 }
-
 if (imageFile && savedProperty?.id) {
-  const safeFileName = imageFile.name
-    .replace(/[^a-zA-Z0-9.-]/g, "-");
+  const formData = new FormData();
 
-  const filePath = `${savedProperty.id}/${Date.now()}-${safeFileName}`;
+  formData.append("file", imageFile);
+  formData.append(
+    "propertyId",
+    String(savedProperty.id)
+  );
 
-  const { error: uploadError } = await supabase.storage
-    .from("property-images")
-    .upload(filePath, imageFile);
+  const response = await fetch(
+    "/api/properties/upload",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
 
-  if (uploadError) {
-    console.error("Image upload error:", uploadError);
-    throw uploadError;
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(
+      result.error || "Image upload failed"
+    );
   }
 
-  const {
-    data: publicUrlData,
-  } = supabase.storage
-    .from("property-images")
-    .getPublicUrl(filePath);
-
-  const imageUrl = publicUrlData.publicUrl;
-
-  await updateProperty(savedProperty.id, {
-    ...propertyData,
-    property_images: [imageUrl],
-  });
+  await updateProperty(
+    savedProperty.id,
+    {
+      ...propertyData,
+      property_images: [result.url],
+    }
+  );
 }
-
 await onSaved();
 
     onClose();

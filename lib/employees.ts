@@ -1,17 +1,21 @@
-import { supabase } from "./supabase";
-
 export async function getEmployees() {
-  const { data, error } = await supabase
-    .from("employees")
-    .select("*")
-    .order("name");
+  const response = await fetch("/api/employees", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "list",
+    }),
+  });
 
-  if (error) {
-    console.error(error);
+  if (!response.ok) {
     return [];
   }
 
-  return data;
+  const result = await response.json();
+
+  return result.data ?? [];
 }
 
 export async function saveEmployee(employee: {
@@ -22,18 +26,24 @@ export async function saveEmployee(employee: {
   status: string;
   notes: string;
 }) {
-  const { data, error } = await supabase
-    .from("employees")
-    .insert([employee])
-    .select()
-    .single();
+  const response = await fetch("/api/employees", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "create",
+      employee,
+    }),
+  });
 
-  if (error) {
-    console.error(error);
-    throw error;
+  if (!response.ok) {
+    throw new Error("Unable to create employee");
   }
 
-  return data;
+  const result = await response.json();
+
+  return result.data;
 }
 
 export async function updateEmployee(
@@ -47,29 +57,40 @@ export async function updateEmployee(
     notes: string;
   }
 ) {
-  const { data, error } = await supabase
-    .from("employees")
-    .update(employee)
-    .eq("id", id)
-    .select()
-    .single();
+  const response = await fetch("/api/employees", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "update",
+      id,
+      employee,
+    }),
+  });
 
-  if (error) {
-    console.error(error);
-    throw error;
+  if (!response.ok) {
+    throw new Error("Unable to update employee");
   }
 
-  return data;
+  const result = await response.json();
+
+  return result.data;
 }
 
 export async function deleteEmployee(id: number) {
-  const { error } = await supabase
-    .from("employees")
-    .delete()
-    .eq("id", id);
+  const response = await fetch("/api/employees", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "delete",
+      id,
+    }),
+  });
 
-  if (error) {
-    console.error(error);
-    throw error;
+  if (!response.ok) {
+    throw new Error("Unable to delete employee");
   }
 }

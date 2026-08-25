@@ -1,28 +1,47 @@
-import { supabase } from "./supabase";
+async function scheduleRequest(
+  action: string,
+  body: Record<string, any> = {}
+) {
+  const response = await fetch("/api/schedule", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action,
+      ...body,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Schedule request failed");
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(
+      result.error || "Schedule request failed"
+    );
+  }
+
+  return result.data;
+}
 
 export async function getCleanerSchedule(
   employeeId: number
 ) {
+  const data = await scheduleRequest("list");
 
-  const { data, error } = await supabase
-    .from("schedule")
-    .select("*")
-    .eq("employee_id", employeeId)
-    .order("cleaning_date");
-
-  if (error) {
-    console.error(error);
-    return [];
-  }
-
-  return data;
-
+  return (data ?? []).filter(
+    (schedule: any) =>
+      Number(schedule.employee_id) === Number(employeeId)
+  );
 }
 
 export async function getTodayCleanerSchedule(
   employeeId: number
 ) {
-
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Toronto",
     year: "numeric",
@@ -32,18 +51,18 @@ export async function getTodayCleanerSchedule(
     .format(new Date())
     .replace(/\//g, "-");
 
-  const { data, error } = await supabase
-    .from("schedule")
-    .select("*")
-    .eq("employee_id", employeeId)
-    .eq("cleaning_date", today)
-    .order("checkout_time");
+  const data = await scheduleRequest("by-date", {
+    date: today,
+  });
 
-  if (error) {
-    console.error(error);
-    return [];
-  }
-
-  return data;
-
+  return (data ?? [])
+    .filter(
+      (schedule: any) =>
+        Number(schedule.employee_id) === Number(employeeId)
+    )
+    .sort((a: any, b: any) =>
+      String(a.checkout_time ?? "").localeCompare(
+        String(b.checkout_time ?? "")
+      )
+    );
 }

@@ -7,10 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { useRouter } from "next/navigation";
-
-import { getEmployees } from "@/lib/employees";
-
-import { loginCleaner } from "@/lib/cleanerAuth";
+import { getCleanerList, loginCleaner } from "@/lib/cleanerAuth";
 
 import {
   ArrowLeft,
@@ -41,7 +38,7 @@ export default function CleanerLoginPage() {
 
     async function load() {
 
-      const data = await getEmployees();
+      const data = await getCleanerList();
 
       setEmployees(data);
 

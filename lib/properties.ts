@@ -1,5 +1,3 @@
-import { supabase } from "./supabase";
-
 type PropertyData = {
   name: string;
   owner: string;
@@ -18,76 +16,59 @@ type PropertyData = {
   property_images?: string[];
 };
 
-export async function getProperties(ownerId?: number) {
-  let query = supabase
-    .from("properties")
-    .select("*")
-    .order("name");
+async function propertyApi(body: any) {
+  const response = await fetch("/api/properties", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
 
-  if (ownerId) {
-    query = query.eq("owner_id", ownerId);
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Property request failed");
   }
 
-  const { data, error } = await query;
+  return result.data;
+}
 
-  if (error) {
-    console.error(error);
+export async function getProperties(ownerId?: number) {
+  try {
+    return await propertyApi({
+      action: "list",
+      ownerId: ownerId ?? null,
+    });
+  } catch (error) {
+    console.error("Error loading properties:", error);
     return [];
   }
-
-  return data;
 }
 
 export async function saveProperty(property: PropertyData) {
-  const { data, error } = await supabase
-    .from("properties")
-    .insert([
-      {
-        ...property,
-      },
-    ])
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error saving property:", error);
-    throw error;
-  }
-
-  return data;
+  return await propertyApi({
+    action: "create",
+    property,
+  });
 }
 
 export async function updateProperty(
   id: number,
   property: PropertyData
 ) {
-  const { data, error } = await supabase
-    .from("properties")
-    .update({
-      ...property,
-    })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error updating property:", error);
-    throw error;
-  }
-
-  return data;
+  return await propertyApi({
+    action: "update",
+    id,
+    property,
+  });
 }
 
 export async function deleteProperty(id: number) {
-  const { error } = await supabase
-    .from("properties")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    console.error("Error deleting property:", error);
-    throw error;
-  }
+  await propertyApi({
+    action: "delete",
+    id,
+  });
 }
 
 export async function updateAirbnbConnection(
@@ -98,22 +79,11 @@ export async function updateAirbnbConnection(
     airbnb_connected: boolean;
   }
 ) {
-  const { error } = await supabase
-    .from("properties")
-    .update({
-      airbnb_listing_url: data.airbnb_listing_url,
-      airbnb_calendar_url: data.airbnb_calendar_url,
-      airbnb_connected: data.airbnb_connected,
-      last_airbnb_sync: new Date().toISOString(),
-    })
-    .eq("id", id);
-
-  if (error) {
-    console.error(
-      "Error updating Airbnb connection:",
-      error
-    );
-
-    throw error;
-  }
+  await propertyApi({
+    action: "airbnb",
+    id,
+    airbnb_listing_url: data.airbnb_listing_url,
+    airbnb_calendar_url: data.airbnb_calendar_url,
+    airbnb_connected: data.airbnb_connected,
+  });
 }

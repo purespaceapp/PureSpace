@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { getProperties } from "@/lib/properties";
+import { getOwners, acceptOwnerTerms } from "@/lib/owners";
 import { getMaintenanceIssues } from "@/lib/maintenance";
 import {
   getSchedules,
@@ -31,7 +32,12 @@ export default function OwnerHomePage() {
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [upcomingCleanings, setUpcomingCleanings] = useState<any[]>([]);
   const [monthlyTotal, setMonthlyTotal] = useState(0);
+const [showTermsModal, setShowTermsModal] = useState(false);
+const [termsAccepted, setTermsAccepted] = useState(false);
+const [termsScrolledToBottom, setTermsScrolledToBottom] = useState(false);
+const [acceptingTerms, setAcceptingTerms] = useState(false);
 
+const TERMS_VERSION = "1.0";
   function handleLogout() {
     sessionStorage.clear();
     router.replace("/owner-login");
@@ -43,6 +49,21 @@ export default function OwnerHomePage() {
 
 
       if (!ownerId) {
+        const owners = await getOwners();
+
+const currentOwner = owners.find(
+  (owner: any) => Number(owner.id) === Number(ownerId)
+);
+
+if (
+  currentOwner &&
+  (!currentOwner.terms_accepted ||
+    currentOwner.terms_version !== TERMS_VERSION)
+) {
+  setShowTermsModal(true);
+} else {
+  setTermsAccepted(true);
+}
         router.replace("/owner-login");
         return;
       }
@@ -782,7 +803,243 @@ setMonthlyTotal(totalThisMonth);
         </div>
 
       )}
+      {/* ================= TERMS & PRIVACY MODAL ================= */}
 
+      {showTermsModal && (
+
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-6">
+
+          <div className="bg-white rounded-[32px] max-w-2xl w-full shadow-2xl overflow-hidden">
+
+            {/* HEADER */}
+
+            <div className="bg-gradient-to-r from-[#2E7BBE] to-[#4C95E7] px-8 py-7 text-white">
+
+              <div className="flex items-center gap-4">
+
+                <div className="bg-white/20 rounded-2xl p-3">
+
+                  <ShieldCheck className="w-8 h-8" />
+
+                </div>
+
+                <div>
+
+                  <h2 className="text-3xl font-bold">
+                    Terms & Privacy
+                  </h2>
+
+                  <p className="text-blue-100 mt-1">
+                    Please review our terms before continuing.
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* TERMS CONTENT */}
+
+            <div
+              onScroll={(e) => {
+
+                const element = e.currentTarget;
+
+                const reachedBottom =
+                  element.scrollTop + element.clientHeight >=
+                  element.scrollHeight - 10;
+
+                if (reachedBottom) {
+                  setTermsScrolledToBottom(true);
+                }
+
+              }}
+              className="px-8 py-6 max-h-[55vh] overflow-y-auto text-slate-600 leading-7 space-y-6"
+            >
+
+              <section>
+
+                <h3 className="text-xl font-bold text-slate-800 mb-3">
+                  1. Use of Your Information
+                </h3>
+
+                <p>
+                  PureSpace Cleaning may collect and use information
+                  provided by property owners through the PureSpace
+                  platform in order to provide and manage our cleaning,
+                  property management, communication, scheduling,
+                  invoicing and related services.
+                </p>
+
+              </section>
+
+              <section>
+
+                <h3 className="text-xl font-bold text-slate-800 mb-3">
+                  2. How We Use Your Information
+                </h3>
+
+                <p>
+                  Your information may be used by PureSpace Cleaning
+                  exclusively for legitimate business purposes related
+                  to providing our services, managing your properties,
+                  communicating with you, processing payments and
+                  maintaining our internal business records.
+                </p>
+
+              </section>
+
+              <section>
+
+                <h3 className="text-xl font-bold text-slate-800 mb-3">
+                  3. Privacy of Your Information
+                </h3>
+
+                <p>
+                  PureSpace Cleaning will not sell or share your
+                  personal information with third parties for
+                  advertising or unrelated commercial purposes.
+                  We will only disclose information when necessary
+                  to provide our services, comply with applicable
+                  legal requirements, or protect the rights and
+                  security of PureSpace Cleaning, our clients and
+                  our platform.
+                </p>
+
+              </section>
+
+              <section>
+
+                <h3 className="text-xl font-bold text-slate-800 mb-3">
+                  4. Property Information
+                </h3>
+
+                <p>
+                  Information relating to your properties, including
+                  addresses, access instructions, door codes, Wi-Fi
+                  information, cleaning instructions and other
+                  operational details, may be stored and accessed
+                  by authorized PureSpace Cleaning personnel when
+                  necessary to provide our services.
+                </p>
+
+              </section>
+
+              <section>
+
+                <h3 className="text-xl font-bold text-slate-800 mb-3">
+                  5. Security
+                </h3>
+
+                <p>
+                  PureSpace Cleaning takes reasonable measures to
+                  protect information stored within the platform.
+                  However, no electronic system can be guaranteed
+                  to be completely secure.
+                </p>
+
+              </section>
+
+              <section>
+
+                <h3 className="text-xl font-bold text-slate-800 mb-3">
+                  6. Acceptance
+                </h3>
+
+                <p>
+                  By selecting "I Accept the Terms", you confirm that
+                  you have read and understood these terms and agree
+                  to the collection, use and storage of your information
+                  as described above.
+                </p>
+
+              </section>
+
+              <div className="rounded-2xl bg-blue-50 border border-blue-100 p-5">
+
+                <p className="text-sm text-blue-800 font-medium">
+
+                  Please scroll through the entire Terms & Privacy
+                  notice before accepting.
+
+                </p>
+
+              </div>
+
+            </div>
+
+            {/* FOOTER */}
+
+            <div className="border-t bg-slate-50 px-8 py-6">
+
+              {!termsScrolledToBottom && (
+
+                <p className="text-center text-sm text-slate-500 mb-4">
+
+                  Please scroll to the bottom to continue.
+
+                </p>
+
+              )}
+
+              <button
+                disabled={!termsScrolledToBottom || acceptingTerms}
+                onClick={async () => {
+
+                  try {
+
+                    const ownerId =
+                      sessionStorage.getItem("ownerId");
+
+                    if (!ownerId) {
+                      router.replace("/owner-login");
+                      return;
+                    }
+
+                    setAcceptingTerms(true);
+
+                    await acceptOwnerTerms(
+                      Number(ownerId),
+                      TERMS_VERSION
+                    );
+
+                    setTermsAccepted(true);
+                    setShowTermsModal(false);
+
+                  } catch (error) {
+
+                    console.error(error);
+
+                    alert(
+                      "We could not save your acceptance. Please try again."
+                    );
+
+                  } finally {
+
+                    setAcceptingTerms(false);
+
+                  }
+
+                }}
+                className="w-full bg-[#2E7BBE] hover:bg-[#245E93] disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-2xl py-4 font-bold text-lg transition-all duration-300"
+              >
+
+                {acceptingTerms
+                  ? "Saving..."
+                  : termsScrolledToBottom
+                    ? "I Accept the Terms"
+                    : "Read the Terms to Continue"}
+
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
     </main>
 
   );

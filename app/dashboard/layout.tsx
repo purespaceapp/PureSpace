@@ -5,7 +5,7 @@ import Image from "next/image";
 
 import { usePathname, useRouter } from "next/navigation";
 
-import { supabase } from "@/lib/supabase";
+
 
 import {
   LayoutDashboard,
@@ -30,13 +30,9 @@ export default function DashboardLayout({
 
   const router = useRouter();
 
-  async function handleLogout() {
-
-    await supabase.auth.signOut();
-
-    router.replace("/office-login");
-
-  }
+  function handleLogout() {
+  router.replace("/office-login");
+}
 
   function menuItem(
     href: string,

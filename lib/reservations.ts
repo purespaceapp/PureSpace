@@ -1,94 +1,79 @@
-import { supabase } from "./supabase";
+async function reservationRequest(
+  action: string,
+  body: Record<string, any> = {}
+) {
+  const response = await fetch("/api/reservations", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action,
+      ...body,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Reservation request failed");
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(
+      result.error || "Reservation request failed"
+    );
+  }
+
+  return result.data;
+}
 
 export async function getReservations() {
-
-  const { data, error } = await supabase
-    .from("reservations")
-    .select("*")
-    .order("check_in", {
-      ascending: true,
-    });
-
-  if (error) throw error;
-
-  return data ?? [];
-
+  return (
+    (await reservationRequest("list")) ?? []
+  );
 }
 
 export async function getReservationsByProperty(
   propertyId: string
 ) {
-
-  const { data, error } = await supabase
-    .from("reservations")
-    .select("*")
-    .eq("property_id", propertyId)
-    .order("check_in");
-
-  if (error) throw error;
-
-  return data ?? [];
-
+  return (
+    (await reservationRequest("by-property", {
+      propertyId,
+    })) ?? []
+  );
 }
+
 export async function createReservation(
   reservation: any
 ) {
-
-  const { data, error } = await supabase
-    .from("reservations")
-    .insert(reservation)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return data;
-
+  return await reservationRequest("create", {
+    reservation,
+  });
 }
+
 export async function updateReservation(
   id: string,
   reservation: any
 ) {
-
-  const { data, error } = await supabase
-    .from("reservations")
-    .update({
-      ...reservation,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return data;
-
+  return await reservationRequest("update", {
+    id,
+    reservation,
+  });
 }
+
 export async function deleteReservation(
   id: string
 ) {
-
-  const { error } = await supabase
-    .from("reservations")
-    .delete()
-    .eq("id", id);
-
-  if (error) throw error;
-
+  await reservationRequest("delete", {
+    id,
+  });
 }
+
 export async function completeCleaning(
   id: string
 ) {
-
-  const { error } = await supabase
-    .from("reservations")
-    .update({
-      cleaning_status: "Completed",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
-
-  if (error) throw error;
-
+  await reservationRequest("complete", {
+    id,
+  });
 }

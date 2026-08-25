@@ -7,8 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { useRouter } from "next/navigation";
-
-import { getOwners } from "@/lib/owners";
+import { loginOwner } from "@/lib/owners";
 
 import {
   ArrowLeft,
@@ -27,7 +26,7 @@ export default function OwnerLoginPage() {
 
   const [password, setPassword] = useState("");
 
-  const [owners, setOwners] = useState<any[]>([]);
+  
 
   const [error, setError] = useState("");
 
@@ -35,47 +34,22 @@ export default function OwnerLoginPage() {
 
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+ 
+async function login(
+  e: React.FormEvent<HTMLFormElement>
+) {
+  e.preventDefault();
 
-    async function load() {
+  setError("");
+  setLoading(true);
 
-      const data = await getOwners();
-
-      setOwners(data);
-
-    }
-
-    load();
-
-  }, []);
-
-  async function login(
-    e: React.FormEvent<HTMLFormElement>
-  ) {
-
-    e.preventDefault();
-
-    setError("");
-
-    setLoading(true);
-
-    const owner = owners.find(
-
-      (o) =>
-
-        o.email === email &&
-        o.password === password
-
-    );
+  try {
+    const owner = await loginOwner(email, password);
 
     if (!owner) {
-
       setError("Invalid email or password.");
-
       setLoading(false);
-
       return;
-
     }
 
     sessionStorage.setItem(
@@ -89,9 +63,13 @@ export default function OwnerLoginPage() {
     );
 
     router.push("/owner-home");
-
+  } catch (error) {
+    console.error("Owner login error:", error);
+    setError("Unable to log in. Please try again.");
+  } finally {
+    setLoading(false);
   }
-
+}
   return (
 
     <main className="min-h-screen bg-gradient-to-br from-[#F5F7FA] via-[#EEF5FF] to-[#E4EEFC] flex items-center justify-center p-8">

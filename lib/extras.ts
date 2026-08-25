@@ -1,20 +1,37 @@
-import { supabase } from "./supabase";
+async function extrasRequest(
+  action: string,
+  body: Record<string, any> = {}
+) {
+  const response = await fetch("/api/extras", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action,
+      ...body,
+    }),
+  });
 
-export async function getExtras() {
-  
-
-  const { data, error } = await supabase
-    .from("extras")
-    .select("*")
-    .order("id");
-
-  if (error) {
-    console.error(error);
-    return [];
+  if (!response.ok) {
+    throw new Error("Extras request failed");
   }
 
-  return data;
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(
+      result.error || "Extras request failed"
+    );
+  }
+
+  return result.data;
 }
+
+export async function getExtras() {
+  return (await extrasRequest("list")) ?? [];
+}
+
 export async function saveScheduleExtras(
   scheduleId: number,
   extras: {
@@ -22,56 +39,33 @@ export async function saveScheduleExtras(
     quantity: number;
   }[]
 ) {
-
   if (extras.length === 0) return;
 
-  const rows = extras.map((extra) => ({
-    schedule_id: scheduleId,
-    extra_id: extra.id,
-    quantity: extra.quantity,
-  }));
-
-  const { error } = await supabase
-    .from("schedule_extras")
-    .insert(rows);
-
-  if (error) {
-    console.error(error);
-    throw error;
-  }
-
+  return await extrasRequest(
+    "save-schedule-extras",
+    {
+      scheduleId,
+      extras,
+    }
+  );
 }
 
 export async function getScheduleExtras(
   scheduleId: number
 ) {
-
-  const { data, error } = await supabase
-    .from("schedule_extras")
-    .select("*")
-    .eq("schedule_id", scheduleId);
-
-  if (error) {
-    console.error(error);
-    return [];
-  }
-
-  return data;
-
+  return (
+    (await extrasRequest(
+      "schedule-extras",
+      { scheduleId }
+    )) ?? []
+  );
 }
 
 export async function deleteScheduleExtras(
   scheduleId: number
 ) {
-
-  const { error } = await supabase
-    .from("schedule_extras")
-    .delete()
-    .eq("schedule_id", scheduleId);
-
-  if (error) {
-    console.error(error);
-    throw error;
-  }
-
+  await extrasRequest(
+    "delete-schedule-extras",
+    { scheduleId }
+  );
 }

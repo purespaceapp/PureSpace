@@ -1,49 +1,55 @@
-import { supabase } from "./supabase";
+async function integrationsRequest(
+  action: string,
+  body: Record<string, any> = {}
+) {
+  const response = await fetch("/api/integrations", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action,
+      ...body,
+    }),
+  });
 
-export async function getIntegration(ownerId: number) {
-
-  const { data, error } = await supabase
-    .from("integrations")
-    .select("*")
-    .eq("owner_id", ownerId)
-    .eq("provider", "Guesty")
-    .maybeSingle();
-
-  if (error) {
-
-    console.error(error);
-
-    return null;
-
+  if (!response.ok) {
+    throw new Error(
+      "Integration request failed"
+    );
   }
 
-  return data;
+  const result = await response.json();
 
+  if (!result.success) {
+    throw new Error(
+      result.error ||
+        "Integration request failed"
+    );
+  }
+
+  return result.data;
 }
 
-export async function saveIntegration(integration: {
-  owner_id: number;
-  provider: string;
-  connected: boolean;
-  api_key: string;
-  account_id: string;
-  organization_id: string;
-}) {
+export async function getIntegration(
+  ownerId: number
+) {
+  return await integrationsRequest("get", {
+    ownerId,
+  });
+}
 
-  const { data, error } = await supabase
-    .from("integrations")
-    .upsert([integration])
-    .select()
-    .single();
-
-  if (error) {
-
-    console.error(error);
-
-    throw error;
-
+export async function saveIntegration(
+  integration: {
+    owner_id: number;
+    provider: string;
+    connected: boolean;
+    api_key: string;
+    account_id: string;
+    organization_id: string;
   }
-
-  return data;
-
+) {
+  return await integrationsRequest("save", {
+    integration,
+  });
 }
