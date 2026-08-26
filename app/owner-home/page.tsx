@@ -42,33 +42,34 @@ const TERMS_VERSION = "1.0";
     sessionStorage.clear();
     router.replace("/owner-login");
   }
+useEffect(() => {
+  async function load() {
+    const ownerId = sessionStorage.getItem("ownerId");
 
-  useEffect(() => {
-    async function load() {
-      const ownerId = sessionStorage.getItem("ownerId");
+    if (!ownerId) {
+      router.replace("/owner-login");
+      return;
+    }
 
+    const numericOwnerId = Number(ownerId);
 
-      if (!ownerId) {
-        const owners = await getOwners();
+    const owners = await getOwners();
 
-const currentOwner = owners.find(
-  (owner: any) => Number(owner.id) === Number(ownerId)
-);
+    const currentOwner = owners.find(
+      (owner: any) => Number(owner.id) === numericOwnerId
+    );
 
-if (
-  currentOwner &&
-  (!currentOwner.terms_accepted ||
-    currentOwner.terms_version !== TERMS_VERSION)
-) {
-  setShowTermsModal(true);
-} else {
-  setTermsAccepted(true);
-}
-        router.replace("/owner-login");
-        return;
-      }
+    if (
+      currentOwner &&
+      (!currentOwner.terms_accepted ||
+        currentOwner.terms_version !== TERMS_VERSION)
+    ) {
+      setShowTermsModal(true);
+    } else {
+      setTermsAccepted(true);
+    }
 
-      const propertyData = await getProperties(Number(ownerId));
+    const propertyData = await getProperties(numericOwnerId);
       setProperties(propertyData);
 
       const maintenance = await getMaintenanceIssues();
@@ -79,7 +80,7 @@ const today = new Date();
 today.setHours(0, 0, 0, 0);
 
 const ownerPropertyIds = propertyData.map(
-  (property) => Number(property.id)
+  (property: any) => Number(property.id)
 );
 
 const upcoming = schedules.filter((schedule: any) => {
@@ -363,120 +364,7 @@ setMonthlyTotal(totalThisMonth);
         </div>
 
       </section>
-            {/* ================= PORTFOLIO OVERVIEW ================= */}
-
-      <section className="max-w-7xl mx-auto px-8 mt-12">
-
-        <div className="bg-white rounded-[36px] border border-slate-100 shadow-xl p-10">
-
-          <div className="flex flex-col lg:flex-row justify-between gap-10">
-
-            <div>
-
-              <p className="uppercase tracking-[4px] text-[#2E7BBE] text-sm font-semibold">
-                Portfolio Overview
-              </p>
-
-              <h2 className="text-4xl font-bold text-slate-800 mt-4">
-                Your Account at a Glance
-              </h2>
-
-              <p className="text-slate-500 mt-4 max-w-2xl leading-8">
-                View the overall status of your properties, maintenance requests
-                and upcoming services in one place.
-              </p>
-
-            </div>
-
-            <div className="flex items-center justify-center">
-
-              <div className="w-28 h-28 rounded-full bg-blue-100 flex items-center justify-center">
-
-                <Building2 className="w-14 h-14 text-[#2E7BBE]" />
-
-              </div>
-
-            </div>
-
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-8 mt-12">
-
-            <div>
-
-              <p className="text-slate-500">
-                Properties
-              </p>
-
-              <h3 className="text-4xl font-bold text-slate-800 mt-3">
-                {properties.length}
-              </h3>
-
-            </div>
-
-            <div>
-
-              <p className="text-slate-500">
-                Open Issues
-              </p>
-
-              <h3 className="text-4xl font-bold text-slate-800 mt-3">
-                {openIssues}
-              </h3>
-
-            </div>
-
-            <div>
-
-              <p className="text-slate-500">
-                Upcoming Cleanings
-              </p>
-
-              <h3 className="text-4xl font-bold text-slate-800 mt-3">
-                0
-              </h3>
-
-            </div>
-
-            <div>
-
-              <p className="text-slate-500">
-                Monthly Expenses
-              </p>
-
-              <h3 className="text-4xl font-bold text-slate-800 mt-3">
-                $0
-              </h3>
-
-            </div>
-
-          </div>
-
-          <div className="mt-12">
-
-            <div className="flex justify-between mb-3">
-
-              <span className="font-semibold text-slate-700">
-                Portfolio Health
-              </span>
-
-              <span className="font-bold text-[#2E7BBE]">
-                100%
-              </span>
-
-            </div>
-
-            <div className="h-4 rounded-full bg-slate-200 overflow-hidden">
-
-              <div className="h-full w-full bg-gradient-to-r from-[#2E7BBE] via-[#4C95E7] to-[#76C3FF]" />
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
+           
             {/* ================= MY PROPERTIES ================= */}
 
       <section className="max-w-7xl mx-auto px-8 mt-14">
