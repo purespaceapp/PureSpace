@@ -3,322 +3,454 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-import { pdf } from "@react-pdf/renderer";
+import { getInvoice, type Invoice } from "@/lib/invoices";
 
-import { getProperties } from "@/lib/properties";
-import { getCompletedSchedulesByProperty } from "@/lib/schedule";
-import {
-  getExtras,
-  getScheduleExtras,
-} from "@/lib/extras";
-import { getReceiptsByProperty } from "@/lib/receipts";
-
-import InvoicePDF from "@/app/components/InvoicePDF";
-import { getCurrentBillingPeriod } from "@/lib/billingPeriod";
 export default function OwnerStatementPage() {
   const { id } = useParams();
   const router = useRouter();
 
-  const [property, setProperty] = useState<any>(null);
+  const [invoice, setInvoice] =
+    useState<Invoice | null>(null);
 
-  const [schedules, setSchedules] = useState<any[]>([]);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [extrasCatalog, setExtrasCatalog] =
-    useState<any[]>([]);
+  function formatDate(value?: string | null) {
+    if (!value) return "—";
 
-  const [approvedReceipts, setApprovedReceipts] =
-    useState<any[]>([]);
+    return new Date(
+      `${value}T00:00:00`
+    ).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
 
-  const [extrasMap, setExtrasMap] = useState<
-    Record<number, any[]>
-  >({});
+  function formatPeriod(
+    start?: string,
+    end?: string
+  ) {
+    if (!start || !end) return "—";
 
-  const [downloading, setDownloading] =
-    useState(false);
-
-    const billingPeriod =
-  getCurrentBillingPeriod();
-  
-  const cleaningTotal = schedules.reduce(
-    (sum, schedule) =>
-      sum + Number(schedule.company_charge),
-    0
-  );
+    return `${formatDate(start)} – ${formatDate(end)}`;
+  }
 
   useEffect(() => {
     async function load() {
-      const ownerId =
-        sessionStorage.getItem("ownerId");
+      try {
+        if (!id) return;
 
-       
+        const data = await getInvoice(
+          Number(id)
+        );
 
-      if (!ownerId || !id) return;
-
-      const properties = await getProperties(
-        Number(ownerId)
-      );
-
-      const selected = properties.find(
-        (p) => Number(p.id) === Number(id)
-      );
-
-      setProperty(selected);
-
-    const completed =
-  await getCompletedSchedulesByProperty(
-    Number(id)
-  );
-
-const periodSchedules =
-  completed.filter((schedule) => {
-    const date = String(
-      schedule.cleaning_date
-    ).slice(0, 10);
-
-    return (
-      date >= billingPeriod.start &&
-      date <= billingPeriod.end
-    );
-  });
-
-setSchedules(periodSchedules);
-
-      const catalog = await getExtras();
-
-      setExtrasCatalog(catalog);
-
-   const receipts =
-  await getReceiptsByProperty(Number(id));
-
-const periodReceipts =
-  receipts.filter((receipt) => {
-    const date = String(
-      receipt.purchase_date
-    ).slice(0, 10);
-
-    return (
-      date >= billingPeriod.start &&
-      date <= billingPeriod.end
-    );
-  });
-
-setApprovedReceipts(periodReceipts);
-
-      const map: Record<number, any[]> = {};
-for (const schedule of periodSchedules) {
-  map[schedule.id] =
-    await getScheduleExtras(schedule.id);
-}
-      setExtrasMap(map);
+        setInvoice(data);
+      } catch (error) {
+        console.error(
+          "Error loading historical invoice:",
+          error
+        );
+      } finally {
+        setLoading(false);
+      }
     }
 
     load();
   }, [id]);
 
-  async function downloadStatement() {
-    try {
-      setDownloading(true);
-
-      const blob = await pdf(
-        <InvoicePDF
-          property={property}
-          schedules={schedules}
-          extrasMap={extrasMap}
-          extrasCatalog={extrasCatalog}
-          cleaningTotal={cleaningTotal}
-          approvedReceipts={approvedReceipts}
-          billingPeriod={billingPeriod}
-        />
-      ).toBlob();
-
-      const url =
-        URL.createObjectURL(blob);
-
-      const link =
-        document.createElement("a");
-
-      link.href = url;
-      link.download = `Statement-${property.name}.pdf`;
-
-      document.body.appendChild(link);
-
-      link.click();
-
-      link.remove();
-
-      URL.revokeObjectURL(url);
-    } finally {
-      setDownloading(false);
-    }
-  }
-
-  if (!property) {
+  if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
         <h1 className="text-2xl font-semibold text-slate-600">
-          Loading Statement...
+          Loading Invoice...
         </h1>
       </main>
     );
   }
 
+  if (!invoice) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-[#F5F7FA] px-6">
+        <div className="bg-white rounded-[30px] shadow-xl p-10 text-center max-w-lg">
+          <h1 className="text-3xl font-bold text-slate-800">
+            Invoice Not Found
+          </h1>
+
+          <p className="text-slate-500 mt-4">
+            This historical invoice could not be found.
+          </p>
+
+          <button
+            onClick={() =>
+              router.push("/owner-invoices")
+            }
+            className="mt-8 bg-[#2E7BBE] hover:bg-[#23649D] text-white px-6 py-3 rounded-xl font-semibold"
+          >
+            ← Back to Invoice History
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  const items =
+    invoice.items ?? [];
+
+  const cleaningItems =
+    items.filter(
+      (item) =>
+        item.item_type === "cleaning"
+    );
+
+  const extraItems =
+    items.filter(
+      (item) =>
+        item.item_type === "extra"
+    );
+
+  const expenseItems =
+    items.filter(
+      (item) =>
+        item.item_type === "expense" ||
+        item.item_type === "receipt"
+    );
+
   return (
-    <main className="min-h-screen bg-[#F5F7FA] flex items-center justify-center px-8 py-14">
+    <main className="min-h-screen bg-[#F5F7FA] px-6 py-12">
 
-      <div className="w-full max-w-4xl">
+      <div className="max-w-5xl mx-auto">
 
-        <div className="bg-white rounded-[36px] shadow-2xl overflow-hidden">
+        {/* HEADER */}
 
-          <div className="bg-gradient-to-r from-[#2E7BBE] to-[#4D97E8] px-10 py-12 text-center text-white">
-<div className="w-30 h-30 rounded-full bg-white mx-auto flex items-center justify-center shadow-xl p-3">
-  <img
-    src="/images/logo.jpg"
-    alt="PureSpace Cleaning"
-    className="w-full h-full object-contain"
-  />
-</div>
+        <div className="bg-white rounded-[35px] shadow-2xl overflow-hidden">
 
-            <h1 className="text-5xl font-bold mt-8">
-              Statement Ready
-            </h1>
+          <div className="bg-gradient-to-r from-[#2E7BBE] to-[#4D97E8] px-10 py-12 text-white">
 
-            <p className="mt-4 text-blue-100 text-xl">
-              Thank you for choosing PureSpace Cleaning.
-            </p>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+
+              <div>
+
+                <p className="text-blue-100 uppercase tracking-wider text-sm font-semibold">
+                  Historical Invoice
+                </p>
+
+                <h1 className="text-5xl font-bold mt-3">
+                  {invoice.property_name}
+                </h1>
+
+                <p className="text-blue-100 text-lg mt-3">
+                  {invoice.property_address}
+                </p>
+
+              </div>
+
+              <div className="bg-white/15 rounded-3xl px-7 py-6 text-center">
+
+                <p className="text-blue-100 text-sm">
+                  Invoice
+                </p>
+
+                <p className="text-2xl font-bold mt-1">
+                  {invoice.invoice_number}
+                </p>
+
+              </div>
+
+            </div>
 
           </div>
 
-          <div className="p-12">
+          {/* INFORMATION */}
 
-            <h2 className="text-3xl font-bold text-slate-800">
-              Your statement is ready.
-            </h2>
+          <div className="p-10">
 
-            <p className="text-slate-500 text-lg mt-4 leading-8">
-              We've prepared your complete property
-              statement including all completed
-              cleanings, approved extra services,
-              property expense receipts and your final
-              balance.
-            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-            <div className="mt-10 space-y-5">
-                            <div className="flex items-center gap-5 rounded-2xl bg-green-50 p-5">
-                <div className="text-3xl">✔</div>
+              <div className="bg-slate-50 rounded-2xl p-6">
 
-                <div>
-                  <h3 className="font-bold text-slate-800">
-                    Completed Cleanings
-                  </h3>
+                <p className="text-sm text-slate-400 font-semibold uppercase">
+                  Bill To
+                </p>
 
-                  <p className="text-slate-500">
-                    {schedules.length} completed cleaning
-                    {schedules.length === 1 ? "" : "s"} included.
-                  </p>
-                </div>
+                <p className="text-xl font-bold text-slate-800 mt-2">
+                  {invoice.owners?.name ||
+                    "Property Owner"}
+                </p>
+
               </div>
 
-              <div className="flex items-center gap-5 rounded-2xl bg-blue-50 p-5">
-                <div className="text-3xl">✔</div>
+              <div className="bg-slate-50 rounded-2xl p-6">
 
-                <div>
-                  <h3 className="font-bold text-slate-800">
-                    Approved Extra Services
-                  </h3>
+                <p className="text-sm text-slate-400 font-semibold uppercase">
+                  Billing Period
+                </p>
 
-                  <p className="text-slate-500">
-                    All approved extras have been added to your statement.
-                  </p>
-                </div>
+                <p className="text-lg font-bold text-slate-800 mt-2">
+                  {formatPeriod(
+                    invoice.period_start,
+                    invoice.period_end
+                  )}
+                </p>
+
               </div>
 
-              <div className="flex items-center gap-5 rounded-2xl bg-yellow-50 p-5">
-                <div className="text-3xl">✔</div>
+              <div className="bg-slate-50 rounded-2xl p-6">
 
-                <div>
-                  <h3 className="font-bold text-slate-800">
-                    Property Expense Receipts
-                  </h3>
+                <p className="text-sm text-slate-400 font-semibold uppercase">
+                  Status
+                </p>
 
-                  <p className="text-slate-500">
-                    {approvedReceipts.length} approved receipt
-                    {approvedReceipts.length === 1 ? "" : "s"} included.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-5 rounded-2xl bg-purple-50 p-5">
-                <div className="text-3xl">✔</div>
-
-                <div>
-                  <h3 className="font-bold text-slate-800">
-                    Total Cleaning Charges
-                  </h3>
-
-                  <p className="text-slate-500">
-                    ${cleaningTotal.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-
-            </div>
-
-            <div className="mt-10 rounded-3xl bg-slate-50 p-8">
-
-              <h3 className="text-2xl font-bold text-slate-800">
-                Property Information
-              </h3>
-
-              <div className="mt-5 space-y-3">
-
-                <div>
-                  <span className="font-semibold text-slate-700">
-                    Property:
-                  </span>{" "}
-                  {property.name}
-                </div>
-
-                <div>
-                  <span className="font-semibold text-slate-700">
-                    Address:
-                  </span>{" "}
-                  {property.address}
-                </div>
-
-                <div>
-                  <span className="font-semibold text-slate-700">
-                    Completed Cleanings:
-                  </span>{" "}
-                  {schedules.length}
-                </div>
+                <p className="text-lg font-bold text-green-600 mt-2">
+                  {invoice.status}
+                </p>
 
               </div>
 
             </div>
 
-            <p className="mt-10 text-center text-slate-500 leading-8">
-              If you have any questions regarding your statement,
-              or believe any information is incorrect,
-              please contact PureSpace Cleaning.
-              Our team will be happy to assist you.
-            </p>
+            {/* CLEANINGS */}
 
-            <div className="mt-10 flex flex-col md:flex-row gap-5">
-                            <button
-                onClick={downloadStatement}
-                disabled={downloading}
-                className="flex-1 bg-[#2E7BBE] hover:bg-[#2569A3] disabled:opacity-60 text-white font-bold py-4 rounded-2xl shadow-lg transition"
-              >
-                {downloading
-                  ? "Generating PDF..."
-                  : "⬇ Download Statement"}
-              </button>
+            <div className="mt-12">
+
+              <h2 className="text-3xl font-bold text-slate-800">
+                Completed Cleanings
+              </h2>
+
+              <p className="text-slate-500 mt-2">
+                Services included in this historical invoice.
+              </p>
+
+              <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+
+                <table className="w-full">
+
+                  <thead className="bg-slate-100">
+
+                    <tr>
+
+                      <th className="text-left px-6 py-4">
+                        Date
+                      </th>
+
+                      <th className="text-left px-6 py-4">
+                        Description
+                      </th>
+
+                      <th className="text-right px-6 py-4">
+                        Amount
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+                  <tbody>
+
+                    {cleaningItems.map(
+                      (item) => (
+
+                        <tr
+                          key={item.id}
+                          className="border-t"
+                        >
+
+                          <td className="px-6 py-4">
+                            {formatDate(
+                              item.item_date
+                            )}
+                          </td>
+
+                          <td className="px-6 py-4">
+                            {item.description}
+                          </td>
+
+                          <td className="px-6 py-4 text-right font-semibold">
+                            ${Number(
+                              item.amount
+                            ).toFixed(2)}
+                          </td>
+
+                        </tr>
+
+                      )
+                    )}
+
+                    {cleaningItems.length === 0 && (
+
+                      <tr>
+
+                        <td
+                          colSpan={3}
+                          className="px-6 py-8 text-center text-slate-500"
+                        >
+                          No cleaning items recorded.
+                        </td>
+
+                      </tr>
+
+                    )}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            </div>
+
+            {/* EXTRAS */}
+
+            {extraItems.length > 0 && (
+
+              <div className="mt-10">
+
+                <h2 className="text-2xl font-bold text-slate-800">
+                  Extra Services
+                </h2>
+
+                <div className="mt-5 space-y-3">
+
+                  {extraItems.map(
+                    (item) => (
+
+                      <div
+                        key={item.id}
+                        className="flex justify-between bg-green-50 rounded-2xl px-6 py-4"
+                      >
+
+                        <span className="text-slate-700">
+                          {item.description}
+                        </span>
+
+                        <span className="font-bold text-green-700">
+                          +$
+                          {Number(
+                            item.amount
+                          ).toFixed(2)}
+                        </span>
+
+                      </div>
+
+                    )
+                  )}
+
+                </div>
+
+              </div>
+
+            )}
+
+            {/* EXPENSES */}
+
+            {expenseItems.length > 0 && (
+
+              <div className="mt-10">
+
+                <h2 className="text-2xl font-bold text-slate-800">
+                  Property Expenses
+                </h2>
+
+                <div className="mt-5 space-y-3">
+
+                  {expenseItems.map(
+                    (item) => (
+
+                      <div
+                        key={item.id}
+                        className="flex justify-between bg-blue-50 rounded-2xl px-6 py-4"
+                      >
+
+                        <span className="text-slate-700">
+                          {item.description}
+                        </span>
+
+                        <span className="font-bold text-blue-700">
+                          +$
+                          {Number(
+                            item.amount
+                          ).toFixed(2)}
+                        </span>
+
+                      </div>
+
+                    )
+                  )}
+
+                </div>
+
+              </div>
+
+            )}
+
+            {/* TOTAL */}
+
+            <div className="mt-12 ml-auto max-w-md">
+
+              <div className="bg-slate-50 rounded-3xl p-7 space-y-4">
+
+                <div className="flex justify-between">
+
+                  <span className="text-slate-500">
+                    Cleaning Total
+                  </span>
+
+                  <span className="font-semibold">
+                    $
+                    {Number(
+                      invoice.total_cleaning
+                    ).toFixed(2)}
+                  </span>
+
+                </div>
+
+                <div className="flex justify-between">
+
+                  <span className="text-slate-500">
+                    Property Expenses
+                  </span>
+
+                  <span className="font-semibold">
+                    $
+                    {Number(
+                      invoice.total_expenses
+                    ).toFixed(2)}
+                  </span>
+
+                </div>
+
+                <div className="border-t pt-5 flex justify-between">
+
+                  <span className="text-xl font-bold text-slate-800">
+                    TOTAL DUE
+                  </span>
+
+                  <span className="text-2xl font-bold text-[#2E7BBE]">
+                    $
+                    {Number(
+                      invoice.total_due
+                    ).toFixed(2)}
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* ACTIONS */}
+
+            <div className="mt-10 flex flex-col md:flex-row gap-4">
 
               <button
-                onClick={() => router.push("/owner-home")}
+                onClick={() =>
+                  router.push(
+                    "/owner-invoices"
+                  )
+                }
                 className="flex-1 border-2 border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#2E7BBE] hover:text-white font-bold py-4 rounded-2xl transition"
               >
-                ← Back to Dashboard
+                ← Back to Invoice History
               </button>
 
             </div>

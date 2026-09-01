@@ -9,13 +9,14 @@ import { usePathname, useRouter } from "next/navigation";
 
 import {
   LayoutDashboard,
-Building2,
-Users,
-CalendarDays,
-Receipt,
-UserRound,
-LogOut,
-Wrench,
+  Building2,
+  Users,
+  CalendarDays,
+  Receipt,
+  FileText,
+  UserRound,
+  LogOut,
+  Wrench,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -137,17 +138,21 @@ export default function DashboardLayout({
             Main
 
           </p>
+<div className="space-y-2">
 
-          <div className="space-y-2">
+  {menuItem(
+    "/dashboard/receipts",
+    "Receipts",
+    <Receipt className="h-5 w-5" />
+  )}
 
-            {menuItem(
-              "/dashboard",
-              "Dashboard",
-              <LayoutDashboard className="h-5 w-5" />
-            )}
+  {menuItem(
+    "/dashboard/invoices",
+    "Invoices",
+    <FileText className="h-5 w-5" />
+  )}
 
-          </div>
-
+</div>
           <p className="mt-10 mb-4 px-3 text-xs uppercase tracking-[0.30em] text-blue-200">
 
             Operations

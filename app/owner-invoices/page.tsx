@@ -3,47 +3,67 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { getCompletedSchedulesByOwner } from "@/lib/schedule";
+import {
+  getOwnerInvoices,
+  type Invoice,
+} from "@/lib/invoices";
+import { downloadHistoricalOwnerInvoice } from "@/lib/ownerHistoricalInvoice";
 
 export default function OwnerInvoicesPage() {
-
   const router = useRouter();
 
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-
     async function load() {
+      try {
+        const ownerId =
+          sessionStorage.getItem("ownerId");
 
-      const ownerId =
-        sessionStorage.getItem("ownerId");
+        if (!ownerId) {
+          router.replace("/owner-login");
+          return;
+        }
 
-      if (!ownerId) return;
-
-      const data =
-        await getCompletedSchedulesByOwner(
+        const data = await getOwnerInvoices(
           Number(ownerId)
         );
 
-      setInvoices(data);
-
+        setInvoices(data);
+      } catch (error) {
+        console.error(
+          "Error loading invoice history:",
+          error
+        );
+      } finally {
+        setLoading(false);
+      }
     }
 
     load();
-
-  }, []);
+  }, [router]);
 
   const filteredInvoices = useMemo(() => {
+    const term = search.toLowerCase();
 
-    return invoices.filter((invoice) =>
+    return invoices.filter((invoice) => {
+      const propertyName =
+        invoice.property_name?.toLowerCase() || "";
 
-      invoice.properties.name
-        .toLowerCase()
-        .includes(search.toLowerCase())
+      const propertyAddress =
+        invoice.property_address?.toLowerCase() || "";
 
-    );
+      const invoiceNumber =
+        invoice.invoice_number?.toLowerCase() || "";
 
+      return (
+        propertyName.includes(term) ||
+        propertyAddress.includes(term) ||
+        invoiceNumber.includes(term)
+      );
+    });
   }, [invoices, search]);
 
   const totalInvoices =
@@ -51,23 +71,91 @@ export default function OwnerInvoicesPage() {
 
   const totalAmount =
     filteredInvoices.reduce(
-
       (sum, invoice) =>
-
-        sum +
-        Number(invoice.company_charge),
-
+        sum + Number(invoice.total_due || 0),
       0
-
     );
 
-  return (
+  const groupedByPeriod = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        period_start: string;
+        period_end: string;
+        invoices: Invoice[];
+      }
+    >();
 
+    for (const invoice of filteredInvoices) {
+      const key =
+        `${invoice.period_start}-${invoice.period_end}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          period_start: invoice.period_start,
+          period_end: invoice.period_end,
+          invoices: [],
+        });
+      }
+
+      groups
+        .get(key)!
+        .invoices
+        .push(invoice);
+    }
+
+    return Array.from(groups.values());
+  }, [filteredInvoices]);
+
+  function formatPeriod(
+    start: string,
+    end: string
+  ) {
+    const startDate =
+      new Date(`${start}T00:00:00`);
+
+    const endDate =
+      new Date(`${end}T00:00:00`);
+
+    const startText =
+      startDate.toLocaleDateString(
+        "en-US",
+        {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }
+      );
+
+    const endText =
+      endDate.toLocaleDateString(
+        "en-US",
+        {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }
+      );
+
+    return `${startText} – ${endText}`;
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
+        <h1 className="text-2xl font-semibold text-slate-600">
+          Loading Invoice History...
+        </h1>
+      </main>
+    );
+  }
+
+  return (
     <main className="min-h-screen bg-[#F5F7FA]">
 
-      <div className="max-w-7xl mx-auto px-10 pt-10">
+      <div className="max-w-7xl mx-auto px-10 pt-10 pb-16">
 
-        {/* Hero */}
+        {/* HERO */}
 
         <div className="rounded-[35px] bg-gradient-to-r from-[#2E7BBE] to-[#4D97E8] text-white p-10 shadow-2xl">
 
@@ -76,15 +164,11 @@ export default function OwnerInvoicesPage() {
             <div>
 
               <h1 className="text-5xl font-bold">
-
-                Cleaning Invoices
-
+                Invoice History
               </h1>
 
               <p className="text-blue-100 text-xl mt-3">
-
-                Download and manage all of your property statements.
-
+                View and download your historical property invoices.
               </p>
 
             </div>
@@ -92,15 +176,11 @@ export default function OwnerInvoicesPage() {
             <div className="bg-white/15 rounded-3xl px-8 py-6 text-center">
 
               <p className="text-blue-100">
-
-                Statements
-
+                Invoices
               </p>
 
               <h2 className="text-5xl font-bold">
-
                 {totalInvoices}
-
               </h2>
 
             </div>
@@ -109,22 +189,18 @@ export default function OwnerInvoicesPage() {
 
         </div>
 
-        {/* Stats */}
+        {/* STATS */}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
 
           <div className="bg-white rounded-[30px] shadow-xl p-7">
 
             <p className="text-slate-500">
-
-              Total Statements
-
+              Total Invoices
             </p>
 
             <h2 className="text-5xl font-bold mt-3">
-
               {totalInvoices}
-
             </h2>
 
           </div>
@@ -132,15 +208,11 @@ export default function OwnerInvoicesPage() {
           <div className="bg-white rounded-[30px] shadow-xl p-7">
 
             <p className="text-slate-500">
-
               Total Amount
-
             </p>
 
             <h2 className="text-5xl font-bold mt-3 text-[#2E7BBE]">
-
               ${totalAmount.toFixed(2)}
-
             </h2>
 
           </div>
@@ -148,189 +220,241 @@ export default function OwnerInvoicesPage() {
           <div className="bg-white rounded-[30px] shadow-xl p-7">
 
             <p className="text-slate-500">
-
               Status
-
             </p>
 
             <h2 className="text-5xl font-bold mt-3 text-green-600">
-
-              Completed
-
+              Historical
             </h2>
 
           </div>
 
         </div>
 
-        {/* Search */}
+        {/* SEARCH */}
 
         <div className="mt-10">
 
           <input
-
             type="text"
-
-            placeholder="Search property..."
-
+            placeholder="Search property or invoice number..."
             value={search}
-
             onChange={(e) =>
               setSearch(e.target.value)
             }
-
             className="w-full bg-white rounded-2xl shadow-lg px-6 py-5 outline-none text-lg"
-
           />
 
         </div>
 
-        {/* Table */}
+        {/* HISTORY */}
 
-        <div className="mt-10 bg-white rounded-[35px] shadow-2xl overflow-hidden">
+        <div className="mt-10 space-y-8">
 
-          <table className="w-full">
+          {groupedByPeriod.map((group) => (
 
-            <thead className="bg-[#2E7BBE] text-white">
+            <section
+              key={`${group.period_start}-${group.period_end}`}
+              className="bg-white rounded-[35px] shadow-2xl overflow-hidden"
+            >
 
-              <tr>
+              <div className="bg-slate-50 border-b px-8 py-6 flex items-center justify-between">
 
-                <th className="text-left px-6 py-5">
-                  Date
-                </th>
+                <div>
 
-                <th className="text-left px-6 py-5">
-                  Property
-                </th>
+                  <p className="text-sm font-semibold text-slate-400 uppercase tracking-wide">
+                    Billing Period
+                  </p>
 
-                <th className="text-center px-6 py-5">
-                  Amount
-                </th>
+                  <h2 className="text-2xl font-bold text-slate-800 mt-1">
+                    {formatPeriod(
+                      group.period_start,
+                      group.period_end
+                    )}
+                  </h2>
 
-                <th className="text-center px-6 py-5">
-                  Status
-                </th>
+                </div>
 
-                <th className="text-center px-6 py-5">
-                  Actions
-                </th>
+                <div className="text-right">
 
-              </tr>
+                  <p className="text-sm text-slate-500">
+                    Period Total
+                  </p>
 
-            </thead>
+                  <p className="text-2xl font-bold text-[#2E7BBE]">
+                    $
+                    {group.invoices
+                      .reduce(
+                        (sum, invoice) =>
+                          sum +
+                          Number(
+                            invoice.total_due || 0
+                          ),
+                        0
+                      )
+                      .toFixed(2)}
+                  </p>
 
-            <tbody>
-                            {filteredInvoices.map((invoice) => (
+                </div>
 
-                <tr
-                  key={invoice.id}
-                  className="border-b hover:bg-slate-50 transition"
-                >
+              </div>
 
-                  <td className="px-6 py-6">
-                    {new Date(
-                      invoice.cleaning_date
-                    ).toLocaleDateString()}
-                  </td>
+              <div className="overflow-x-auto">
 
-                  <td className="px-6 py-6">
+                <table className="w-full">
 
-                    <div>
+                  <thead className="bg-[#2E7BBE] text-white">
 
-                      <h3 className="font-bold text-slate-800">
+                    <tr>
 
-                        {invoice.properties.name}
+                      <th className="text-left px-6 py-5">
+                        Property
+                      </th>
 
-                      </h3>
+                      <th className="text-left px-6 py-5">
+                        Invoice
+                      </th>
 
-                      <p className="text-slate-500 text-sm">
+                      <th className="text-center px-6 py-5">
+                        Cleaning
+                      </th>
 
-                        {invoice.properties.address}
+                      <th className="text-center px-6 py-5">
+                        Expenses
+                      </th>
 
-                      </p>
+                      <th className="text-center px-6 py-5">
+                        Total
+                      </th>
 
-                    </div>
+                      <th className="text-center px-6 py-5">
+                        Actions
+                      </th>
 
-                  </td>
+                    </tr>
 
-                  <td className="px-6 py-6 text-center font-semibold text-[#2E7BBE]">
+                  </thead>
 
-                    ${Number(
-                      invoice.company_charge
-                    ).toFixed(2)}
+                  <tbody>
 
-                  </td>
+                    {group.invoices.map(
+                      (invoice) => (
 
-                  <td className="px-6 py-6 text-center">
+                        <tr
+                          key={invoice.id}
+                          className="border-b hover:bg-slate-50 transition"
+                        >
 
-                    <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full font-semibold">
+                          <td className="px-6 py-6">
 
-                      {invoice.status}
+                            <div>
 
-                    </span>
+                              <h3 className="font-bold text-slate-800">
+                                {invoice.property_name}
+                              </h3>
 
-                  </td>
+                              <p className="text-slate-500 text-sm">
+                                {invoice.property_address}
+                              </p>
 
-                  <td className="px-6 py-6">
+                            </div>
 
-                    <div className="flex justify-center gap-3">
+                          </td>
 
-                      <button
-                        onClick={() =>
-                          router.push(
-                            `/owner-statement/${invoice.property_id}`
-                          )
-                        }
-                        className="bg-[#2E7BBE] hover:bg-[#23649D] text-white px-5 py-3 rounded-xl font-semibold transition"
-                      >
-                        View Statement
-                      </button>
+                          <td className="px-6 py-6 font-mono text-sm text-slate-600">
+                            {invoice.invoice_number}
+                          </td>
 
-                      <button
-                        onClick={() =>
-                          router.push(
-                            `/owner-statement/${invoice.property_id}`
-                          )
-                        }
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl font-semibold transition"
-                      >
-                        Download
-                      </button>
+                          <td className="px-6 py-6 text-center">
+                            ${Number(
+                              invoice.total_cleaning || 0
+                            ).toFixed(2)}
+                          </td>
 
-                    </div>
+                          <td className="px-6 py-6 text-center">
+                            ${Number(
+                              invoice.total_expenses || 0
+                            ).toFixed(2)}
+                          </td>
 
-                  </td>
+                          <td className="px-6 py-6 text-center font-bold text-[#2E7BBE]">
+                            ${Number(
+                              invoice.total_due || 0
+                            ).toFixed(2)}
+                          </td>
 
-                </tr>
+                          <td className="px-6 py-6">
 
-              ))}
+                           <div className="flex justify-center gap-3">
 
-              {filteredInvoices.length === 0 && (
+  <button
+    onClick={() =>
+      router.push(
+        `/owner-statement/${invoice.id}`
+      )
+    }
+    className="bg-[#2E7BBE] hover:bg-[#23649D] text-white px-5 py-3 rounded-xl font-semibold transition"
+  >
+    View Invoice
+  </button>
 
-                <tr>
+  <button
+    onClick={() =>
+      downloadHistoricalOwnerInvoice({
+        invoice_number: invoice.invoice_number,
+        property_name: invoice.property_name,
+        property_address: invoice.property_address,
+        period_start: invoice.period_start,
+        period_end: invoice.period_end,
+        total_cleaning: Number(invoice.total_cleaning || 0),
+        total_expenses: Number(invoice.total_expenses || 0),
+        total_due: Number(invoice.total_due || 0),
+      })
+    }
+    className="border border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#EAF4FB] px-5 py-3 rounded-xl font-semibold transition"
+  >
+    Download PDF
+  </button>
 
-                  <td
-                    colSpan={5}
-                    className="py-16 text-center text-slate-500 text-lg"
-                  >
+</div>
 
-                    No invoices found.
+                          </td>
 
-                  </td>
+                        </tr>
 
-                </tr>
+                      )
+                    )}
 
-              )}
-                          </tbody>
+                  </tbody>
 
-          </table>
+                </table>
+
+              </div>
+
+            </section>
+
+          ))}
+
+          {groupedByPeriod.length === 0 && (
+
+            <div className="bg-white rounded-[35px] shadow-2xl py-20 text-center">
+
+              <h2 className="text-2xl font-bold text-slate-700">
+                No invoice history found.
+              </h2>
+
+              <p className="text-slate-500 mt-3">
+                Historical invoices will appear here once they are created.
+              </p>
+
+            </div>
+
+          )}
 
         </div>
 
       </div>
 
     </main>
-
   );
-
 }
