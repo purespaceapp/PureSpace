@@ -48,6 +48,73 @@ export async function POST(request: Request) {
         data: enabled,
       });
     }
+        // ==========================================
+    // UPDATE HST FOR A SINGLE INVOICE
+    // ==========================================
+
+    if (action === "set-invoice-hst") {
+      const invoiceId = Number(body.invoiceId);
+      const enabled = Boolean(body.enabled);
+
+      if (!invoiceId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Missing invoice ID",
+          },
+          { status: 400 }
+        );
+      }
+
+      const { data: invoice, error: invoiceError } =
+        await supabaseAdmin
+          .from("invoices")
+          .select(
+            "id, total_cleaning, total_expenses"
+          )
+          .eq("id", invoiceId)
+          .maybeSingle();
+
+      if (invoiceError) throw invoiceError;
+
+      if (!invoice) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invoice not found",
+          },
+          { status: 404 }
+        );
+      }
+
+      const subtotal =
+        Number(invoice.total_cleaning || 0) +
+        Number(invoice.total_expenses || 0);
+
+      const hstAmount = enabled
+        ? subtotal * 0.13
+        : 0;
+
+      const totalDue = subtotal + hstAmount;
+
+      const { data: updatedInvoice, error: updateError } =
+        await supabaseAdmin
+          .from("invoices")
+          .update({
+            hst_enabled: enabled,
+            total_due: totalDue,
+          })
+          .eq("id", invoiceId)
+          .select()
+          .single();
+
+      if (updateError) throw updateError;
+
+      return NextResponse.json({
+        success: true,
+        data: updatedInvoice,
+      });
+    }
         if (action === "create-period") {
       if (!body.start || !body.end) {
         return NextResponse.json(
@@ -58,11 +125,23 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+const { data: hstSetting, error: hstError } =
+  await supabaseAdmin
+    .from("app_settings")
+    .select("value")
+    .eq("key", "hst_enabled")
+    .single();
 
-      const invoices = await generateInvoicesForPeriod({
-        start: body.start,
-        end: body.end,
-      });
+if (hstError) throw hstError;
+
+const hstEnabled =
+  hstSetting?.value === "true";
+
+const invoices = await generateInvoicesForPeriod({
+  start: body.start,
+  end: body.end,
+  hstEnabled,
+});
 
       return NextResponse.json({
         success: true,

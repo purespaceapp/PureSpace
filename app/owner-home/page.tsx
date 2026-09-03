@@ -573,6 +573,14 @@ setMonthlyTotal(totalThisMonth);
               Contact Support
             </button>
 
+<button
+  onClick={() => router.push("/owner-invoices")}
+  className="bg-white text-[#2E7BBE] rounded-2xl px-6 py-4 font-semibold flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+>
+  <FileText className="w-5 h-5"/>
+  Invoice History
+</button>
+
           </div>
 
         </div>

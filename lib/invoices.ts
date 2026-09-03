@@ -24,9 +24,10 @@ export type Invoice = {
   property_name: string;
   property_address?: string | null;
 
-  total_cleaning: number;
+   total_cleaning: number;
   total_expenses: number;
   total_due: number;
+  hst_enabled: boolean;
 
   status: string;
   created_at: string;

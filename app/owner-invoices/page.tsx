@@ -158,6 +158,13 @@ const totalWithHst = totalAmount + totalHst;
 
       <div className="max-w-7xl mx-auto px-10 pt-10 pb-16">
 
+ <button
+    onClick={() => router.push("/owner-home")}
+    className="mb-6 flex items-center gap-2 rounded-2xl border-2 border-[#2E7BBE] bg-white px-5 py-3 font-semibold text-[#2E7BBE] shadow-md transition hover:bg-[#2E7BBE] hover:text-white"
+  >
+    ← Back to Owner Portal
+  </button>
+  
         {/* HERO */}
 
         <div className="rounded-[35px] bg-gradient-to-r from-[#2E7BBE] to-[#4D97E8] text-white p-10 shadow-2xl">

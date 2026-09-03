@@ -221,48 +221,6 @@ async function toggleHst() {
 
   <div className="flex items-center gap-4">
 
-    {/* HST CONTROL */}
-    <div className="rounded-3xl border border-slate-100 bg-white px-5 py-4 shadow-md">
-
-      <div className="flex items-center gap-4">
-
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-            HST
-          </p>
-
-          <p className="mt-1 text-sm font-semibold text-slate-700">
-            {hstEnabled ? "Enabled" : "Disabled"}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={toggleHst}
-          disabled={savingHst}
-          className={`relative h-7 w-12 rounded-full transition ${
-            hstEnabled
-              ? "bg-[#2E7BBE]"
-              : "bg-slate-300"
-          }`}
-          aria-label={
-            hstEnabled
-              ? "Disable HST"
-              : "Enable HST"
-          }
-        >
-          <span
-            className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
-              hstEnabled
-                ? "left-6"
-                : "left-1"
-            }`}
-          />
-        </button>
-
-      </div>
-
-    </div>
 
     {/* INVOICE ICON */}
     <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-slate-100 bg-white shadow-md">

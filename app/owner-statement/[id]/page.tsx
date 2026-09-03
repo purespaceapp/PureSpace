@@ -83,11 +83,11 @@ export default function OwnerStatementPage() {
 
           <button
             onClick={() =>
-              router.push("/owner-invoices")
-            }
+  router.push("/owner-home")
+}
             className="mt-8 bg-[#2E7BBE] hover:bg-[#23649D] text-white px-6 py-3 rounded-xl font-semibold"
           >
-            ← Back to Invoice History
+          ← Back to Owner Portal
           </button>
         </div>
       </main>
@@ -478,15 +478,13 @@ const hstAmount = subtotal * 0.13;
             <div className="mt-10 flex flex-col md:flex-row gap-4">
 
               <button
-                onClick={() =>
-                  router.push(
-                    "/owner-invoices"
-                  )
-                }
-                className="flex-1 border-2 border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#2E7BBE] hover:text-white font-bold py-4 rounded-2xl transition"
-              >
-                ← Back to Invoice History
-              </button>
+  onClick={() =>
+    router.push("/owner-home")
+  }
+  className="flex-1 border-2 border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#2E7BBE] hover:text-white font-bold py-4 rounded-2xl transition"
+>
+  ← Back to Owner Portal
+</button>
 
             </div>
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { generateInvoicesForPeriod } from "@/lib/generateInvoices";
 
 export async function GET(request: Request) {
@@ -78,11 +79,24 @@ export async function GET(request: Request) {
       });
     }
 
-    const invoices =
-      await generateInvoicesForPeriod({
-        start,
-        end,
-      });
+   const { data: hstSetting, error: hstError } =
+  await supabaseAdmin
+    .from("app_settings")
+    .select("value")
+    .eq("key", "hst_enabled")
+    .single();
+
+if (hstError) throw hstError;
+
+const hstEnabled =
+  hstSetting?.value === "true";
+
+const invoices =
+  await generateInvoicesForPeriod({
+    start,
+    end,
+    hstEnabled,
+  });
 
     return NextResponse.json({
       success: true,
