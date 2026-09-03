@@ -44,28 +44,94 @@ function formatMoney(value: number) {
 export default function OfficeInvoicesPage() {
   const router = useRouter();
 
-  const [groups, setGroups] = useState<OfficeInvoiceGroup[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+const [groups, setGroups] = useState<OfficeInvoiceGroup[]>([]);
+const [loading, setLoading] = useState(true);
+const [search, setSearch] = useState("");
+const [hstEnabled, setHstEnabled] = useState(true);
+const [savingHst, setSavingHst] = useState(false);
 
-  useEffect(() => {
-    loadInvoices();
-  }, []);
+useEffect(() => {
+  loadInvoices();
+  loadHstSetting();
+}, []);
 
   async function loadInvoices() {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const data = await getOfficeInvoices();
+    const data = await getOfficeInvoices();
 
-      setGroups((data || []) as unknown as OfficeInvoiceGroup[]);
-    } catch (error) {
-      console.error("Failed to load office invoices:", error);
-    } finally {
-      setLoading(false);
-    }
+    setGroups((data || []) as unknown as OfficeInvoiceGroup[]);
+  } catch (error) {
+    console.error("Failed to load office invoices:", error);
+  } finally {
+    setLoading(false);
   }
+}
+async function loadHstSetting() {
+  try {
+    const response = await fetch("/api/invoices", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "get-hst",
+      }),
+    });
 
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.error || "Failed to load HST setting"
+      );
+    }
+
+    setHstEnabled(Boolean(result.data));
+  } catch (error) {
+    console.error(
+      "Failed to load HST setting:",
+      error
+    );
+  }
+}
+
+async function toggleHst() {
+  try {
+    setSavingHst(true);
+
+    const nextValue = !hstEnabled;
+
+    const response = await fetch("/api/invoices", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "set-hst",
+        enabled: nextValue,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.error || "Failed to update HST setting"
+      );
+    }
+
+    setHstEnabled(Boolean(result.data));
+  } catch (error) {
+    console.error(
+      "Failed to update HST setting:",
+      error
+    );
+  } finally {
+    setSavingHst(false);
+  }
+}
   const filteredGroups = useMemo(() => {
     return groups
       .filter((group) => {
@@ -136,27 +202,76 @@ export default function OfficeInvoicesPage() {
   return (
     <div className="min-h-screen bg-[#F4F7FB]">
       <div className="mx-auto max-w-[1700px] space-y-8 px-8 py-8">
+{/* HEADER */}
+<div className="flex items-start justify-between gap-6">
 
-        {/* HEADER */}
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#2E7BBE]">
-              Finance
-            </p>
+  <div>
+    <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#2E7BBE]">
+      Finance
+    </p>
 
-            <h1 className="mt-2 text-4xl font-black text-[#1F4E79]">
-              Invoices
-            </h1>
+    <h1 className="mt-2 text-4xl font-black text-[#1F4E79]">
+      Invoices
+    </h1>
 
-            <p className="mt-2 text-slate-500">
-              Historical owner invoices and billing periods.
-            </p>
-          </div>
+    <p className="mt-2 text-slate-500">
+      Historical owner invoices and billing periods.
+    </p>
+  </div>
 
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-slate-100 bg-white shadow-md">
-            <FileText className="h-8 w-8 text-[#2E7BBE]" />
-          </div>
+  <div className="flex items-center gap-4">
+
+    {/* HST CONTROL */}
+    <div className="rounded-3xl border border-slate-100 bg-white px-5 py-4 shadow-md">
+
+      <div className="flex items-center gap-4">
+
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+            HST
+          </p>
+
+          <p className="mt-1 text-sm font-semibold text-slate-700">
+            {hstEnabled ? "Enabled" : "Disabled"}
+          </p>
         </div>
+
+        <button
+          type="button"
+          onClick={toggleHst}
+          disabled={savingHst}
+          className={`relative h-7 w-12 rounded-full transition ${
+            hstEnabled
+              ? "bg-[#2E7BBE]"
+              : "bg-slate-300"
+          }`}
+          aria-label={
+            hstEnabled
+              ? "Disable HST"
+              : "Enable HST"
+          }
+        >
+          <span
+            className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
+              hstEnabled
+                ? "left-6"
+                : "left-1"
+            }`}
+          />
+        </button>
+
+      </div>
+
+    </div>
+
+    {/* INVOICE ICON */}
+    <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-slate-100 bg-white shadow-md">
+      <FileText className="h-8 w-8 text-[#2E7BBE]" />
+    </div>
+
+  </div>
+
+</div>
 
         {/* STATS */}
         <div className="grid grid-cols-3 gap-5">

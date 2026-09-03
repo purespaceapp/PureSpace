@@ -68,13 +68,16 @@ export default function OwnerInvoicesPage() {
 
   const totalInvoices =
     filteredInvoices.length;
+const totalAmount = filteredInvoices.reduce(
+  (sum, invoice) =>
+    sum +
+    Number(invoice.total_cleaning || 0) +
+    Number(invoice.total_expenses || 0),
+  0
+);
 
-  const totalAmount =
-    filteredInvoices.reduce(
-      (sum, invoice) =>
-        sum + Number(invoice.total_due || 0),
-      0
-    );
+const totalHst = totalAmount * 0.13;
+const totalWithHst = totalAmount + totalHst;
 
   const groupedByPeriod = useMemo(() => {
     const groups = new Map<
@@ -206,15 +209,17 @@ export default function OwnerInvoicesPage() {
           </div>
 
           <div className="bg-white rounded-[30px] shadow-xl p-7">
+<p className="text-slate-500">
+  Total Amount
+</p>
 
-            <p className="text-slate-500">
-              Total Amount
-            </p>
+<h2 className="text-5xl font-bold mt-3 text-[#2E7BBE]">
+  ${totalWithHst.toFixed(2)}
+</h2>
 
-            <h2 className="text-5xl font-bold mt-3 text-[#2E7BBE]">
-              ${totalAmount.toFixed(2)}
-            </h2>
-
+<p className="mt-2 text-sm text-slate-400">
+  Includes HST (13%)
+</p>
           </div>
 
           <div className="bg-white rounded-[30px] shadow-xl p-7">
@@ -277,24 +282,30 @@ export default function OwnerInvoicesPage() {
 
                 <div className="text-right">
 
-                  <p className="text-sm text-slate-500">
-                    Period Total
-                  </p>
+                  <div className="text-right">
 
-                  <p className="text-2xl font-bold text-[#2E7BBE]">
-                    $
-                    {group.invoices
-                      .reduce(
-                        (sum, invoice) =>
-                          sum +
-                          Number(
-                            invoice.total_due || 0
-                          ),
-                        0
-                      )
-                      .toFixed(2)}
-                  </p>
+  <p className="text-sm text-slate-500">
+    Period Total
+  </p>
 
+  <p className="text-2xl font-bold text-[#2E7BBE]">
+    $
+    {(
+      group.invoices.reduce(
+        (sum, invoice) =>
+          sum +
+          Number(invoice.total_cleaning || 0) +
+          Number(invoice.total_expenses || 0),
+        0
+      ) * 1.13
+    ).toFixed(2)}
+  </p>
+
+  <p className="mt-1 text-xs text-slate-400">
+    Includes HST (13%)
+  </p>
+
+</div>
                 </div>
 
               </div>
@@ -324,8 +335,8 @@ export default function OwnerInvoicesPage() {
                       </th>
 
                       <th className="text-center px-6 py-5">
-                        Total
-                      </th>
+  Total Due
+</th>
 
                       <th className="text-center px-6 py-5">
                         Actions
@@ -377,11 +388,21 @@ export default function OwnerInvoicesPage() {
                             ).toFixed(2)}
                           </td>
 
-                          <td className="px-6 py-6 text-center font-bold text-[#2E7BBE]">
-                            ${Number(
-                              invoice.total_due || 0
-                            ).toFixed(2)}
-                          </td>
+                     <td className="px-6 py-6 text-center">
+  <p className="font-bold text-[#2E7BBE]">
+    $
+    {(
+      (
+        Number(invoice.total_cleaning || 0) +
+        Number(invoice.total_expenses || 0)
+      ) * 1.13
+    ).toFixed(2)}
+  </p>
+
+  <p className="mt-1 text-xs text-slate-400">
+    HST included
+  </p>
+</td>
 
                           <td className="px-6 py-6">
 

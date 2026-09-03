@@ -116,6 +116,15 @@ export default function OwnerStatementPage() {
         item.item_type === "receipt"
     );
 
+      const subtotal =
+    Number(invoice.total_cleaning || 0) +
+    Number(invoice.total_expenses || 0);
+
+  const hstAmount = subtotal * 0.13;
+  const grandTotal = subtotal + hstAmount;
+
+
+
   return (
     <main className="min-h-screen bg-[#F5F7FA] px-6 py-12">
 
@@ -382,7 +391,11 @@ export default function OwnerStatementPage() {
               </div>
 
             )}
+const subtotal =
+  Number(invoice.total_cleaning || 0) +
+  Number(invoice.total_expenses || 0);
 
+const hstAmount = subtotal * 0.13;
             {/* TOTAL */}
 
             <div className="mt-12 ml-auto max-w-md">
@@ -398,7 +411,7 @@ export default function OwnerStatementPage() {
                   <span className="font-semibold">
                     $
                     {Number(
-                      invoice.total_cleaning
+                      invoice.total_cleaning || 0
                     ).toFixed(2)}
                   </span>
 
@@ -413,8 +426,32 @@ export default function OwnerStatementPage() {
                   <span className="font-semibold">
                     $
                     {Number(
-                      invoice.total_expenses
+                      invoice.total_expenses || 0
                     ).toFixed(2)}
+                  </span>
+
+                </div>
+
+                <div className="flex justify-between">
+
+                  <span className="text-slate-500">
+                    Subtotal
+                  </span>
+
+                  <span className="font-semibold">
+                    ${subtotal.toFixed(2)}
+                  </span>
+
+                </div>
+
+                <div className="flex justify-between">
+
+                  <span className="text-slate-500">
+                    HST (13%)
+                  </span>
+
+                  <span className="font-semibold">
+                    ${hstAmount.toFixed(2)}
                   </span>
 
                 </div>
@@ -426,10 +463,7 @@ export default function OwnerStatementPage() {
                   </span>
 
                   <span className="text-2xl font-bold text-[#2E7BBE]">
-                    $
-                    {Number(
-                      invoice.total_due
-                    ).toFixed(2)}
+                    ${grandTotal.toFixed(2)}
                   </span>
 
                 </div>
@@ -438,6 +472,7 @@ export default function OwnerStatementPage() {
 
             </div>
 
+          
             {/* ACTIONS */}
 
             <div className="mt-10 flex flex-col md:flex-row gap-4">

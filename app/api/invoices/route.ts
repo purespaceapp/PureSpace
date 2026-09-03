@@ -6,6 +6,48 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { action } = body;
+        // ==========================================
+    // HST SETTING
+    // ==========================================
+
+    if (action === "get-hst") {
+      const { data, error } = await supabaseAdmin
+        .from("app_settings")
+        .select("value")
+        .eq("key", "hst_enabled")
+        .single();
+
+      if (error) throw error;
+
+      return NextResponse.json({
+        success: true,
+        data: data?.value === "true",
+      });
+    }
+
+    if (action === "set-hst") {
+      const enabled = Boolean(body.enabled);
+
+      const { error } = await supabaseAdmin
+        .from("app_settings")
+        .upsert(
+          {
+            key: "hst_enabled",
+            value: String(enabled),
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "key",
+          }
+        );
+
+      if (error) throw error;
+
+      return NextResponse.json({
+        success: true,
+        data: enabled,
+      });
+    }
         if (action === "create-period") {
       if (!body.start || !body.end) {
         return NextResponse.json(
@@ -183,21 +225,23 @@ export async function POST(request: Request) {
           invoice.period_start,
           invoice.period_end,
         ].join("-");
-
-        if (!grouped.has(key)) {
-          grouped.set(key, {
-            owner_id: invoice.owner_id,
-            owner: invoice.owners ?? null,
-            period_start: invoice.period_start,
-            period_end: invoice.period_end,
-            status: invoice.status,
-            invoices: [],
-            total_cleaning: 0,
-            total_expenses: 0,
-            total_due: 0,
-          });
-        }
-
+if (!grouped.has(key)) {
+  grouped.set(key, {
+    owner_id: invoice.owner_id,
+    owner_name:
+      invoice.owners?.name ||
+      `Owner #${invoice.owner_id}`,
+    owner_email:
+      invoice.owners?.email || null,
+    period_start: invoice.period_start,
+    period_end: invoice.period_end,
+    status: invoice.status,
+    invoices: [],
+    total_cleaning: 0,
+    total_expenses: 0,
+    total_due: 0,
+  });
+}
         const group = grouped.get(key);
 
         group.invoices.push(invoice);

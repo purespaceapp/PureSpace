@@ -38,6 +38,7 @@ export async function downloadHistoricalOwnerInvoice(
     `$${Number(amount || 0).toFixed(2)}`;
 
   const formatDate = (date: string) =>
+    
     new Date(`${date}T00:00:00`).toLocaleDateString(
       "en-US",
       {
@@ -46,6 +47,12 @@ export async function downloadHistoricalOwnerInvoice(
         year: "numeric",
       }
     );
+    const subtotal =
+  Number(invoice.total_cleaning || 0) +
+  Number(invoice.total_expenses || 0);
+
+const hstAmount = subtotal * 0.13;
+const grandTotal = subtotal + hstAmount;
 
   // Background
   doc.setFillColor(250, 251, 253);
@@ -185,6 +192,7 @@ export async function downloadHistoricalOwnerInvoice(
     102
   );
 
+   
   // Charges
   let y = 122;
 
@@ -246,34 +254,99 @@ export async function downloadHistoricalOwnerInvoice(
   );
 
   y += 14;
+ // Total
+doc.setFillColor(46, 123, 190);
 
-  // Total
-  doc.setFillColor(46, 123, 190);
+doc.roundedRect(
+  20,
+  y,
+  170,
+  48,
+  3,
+  3,
+  "F"
+);
 
-  doc.roundedRect(
-    20,
-    y,
-    170,
-    25,
-    3,
-    3,
-    "F"
+doc.setTextColor(255);
+doc.setFont("helvetica", "normal");
+doc.setFontSize(10);
+
+doc.text(
+  "Subtotal",
+  28,
+  y + 11
+);
+
+doc.text(
+  "HST (13%)",
+  28,
+  y + 21
+);
+
+doc.setFont("helvetica", "bold");
+doc.setFontSize(16);
+
+doc.text(
+  "TOTAL DUE",
+  28,
+  y + 38
+);
+
+doc.setFont("helvetica", "normal");
+doc.setFontSize(10);
+
+doc.text(
+  formatMoney(subtotal),
+  180,
+  y + 11,
+  { align: "right" }
+);
+
+doc.text(
+  formatMoney(hstAmount),
+  180,
+  y + 21,
+  { align: "right" }
+);
+
+doc.setFont("helvetica", "bold");
+doc.setFontSize(16);
+
+doc.text(
+  formatMoney(grandTotal),
+  180,
+  y + 38,
+  { align: "right" }
+);
+
+  doc.text(
+    formatMoney(invoice.total_expenses),
+    155,
+    y + 19,
+    { align: "right" }
   );
 
-  doc.setTextColor(255);
+  doc.text(
+    formatMoney(subtotal),
+    155,
+    y + 28,
+    { align: "right" }
+  );
+
+  doc.text(
+    formatMoney(hstAmount),
+    155,
+    y + 37,
+    { align: "right" }
+  );
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(15);
 
   doc.text(
-    "TOTAL",
-    28,
-    y + 16
-  );
-
-  doc.text(
-    formatMoney(invoice.total_due),
+    formatMoney(grandTotal),
     180,
-    y + 16,
+    y + 44,
     { align: "right" }
   );
 

@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 type GeneratePeriodInput = {
   start: string;
   end: string;
+  hstEnabled?: boolean;
 };
 
 type GeneratedInvoice = {
@@ -22,6 +23,7 @@ function toNumber(value: unknown): number {
 export async function generateInvoicesForPeriod({
   start,
   end,
+  hstEnabled = false,
 }: GeneratePeriodInput): Promise<GeneratedInvoice[]> {
   /*
    * IMPORTANT:
@@ -152,7 +154,13 @@ export async function generateInvoicesForPeriod({
       continue;
     }
     
-    const totalDue = totalCleaning + totalExpenses;
+   const subtotal = totalCleaning + totalExpenses;
+
+const hstAmount = hstEnabled
+  ? subtotal * 0.13
+  : 0;
+
+const totalDue = subtotal + hstAmount;
 
     /*
      * Invoice number:
@@ -186,9 +194,10 @@ export async function generateInvoicesForPeriod({
           property_name: property.name,
           property_address: property.address ?? null,
           total_cleaning: totalCleaning,
-          total_expenses: totalExpenses,
-          total_due: totalDue,
-          status: "Finalized",
+total_expenses: totalExpenses,
+total_due: totalDue,
+hst_enabled: hstEnabled,
+status: "Finalized",
         })
         .select()
         .single();

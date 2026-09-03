@@ -55,20 +55,30 @@ setInvoices(matchingGroup?.invoices || []);
     }
   }, [ownerId, periodStart, periodEnd]);
 
-  const totals = useMemo(() => {
-    return invoices.reduce(
-      (acc, invoice) => {
-        acc.cleaning += Number(invoice.total_cleaning || 0);
-        acc.expenses += Number(invoice.total_expenses || 0);
-        acc.total += Number(invoice.total_due || 0);
-        return acc;
-      },
-      {
-        cleaning: 0,
-        expenses: 0,
-        total: 0,
-      }
+    const totals = useMemo(() => {
+    const cleaning = invoices.reduce(
+      (sum, invoice) =>
+        sum + Number(invoice.total_cleaning || 0),
+      0
     );
+
+    const expenses = invoices.reduce(
+      (sum, invoice) =>
+        sum + Number(invoice.total_expenses || 0),
+      0
+    );
+
+    const subtotal = cleaning + expenses;
+    const hst = subtotal * 0.13;
+    const total = subtotal + hst;
+
+    return {
+      cleaning,
+      expenses,
+      subtotal,
+      hst,
+      total,
+    };
   }, [invoices]);
 
   const ownerName =

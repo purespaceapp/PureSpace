@@ -68,7 +68,9 @@ export async function downloadOfficeInvoice(
       sum + Number(invoice.total_due || 0),
     0
   );
-
+  const HST_RATE = 0.13;
+  const hstAmount = totalDue * HST_RATE;
+  const grandTotal = totalDue + hstAmount;
   // Background
   doc.setFillColor(250, 251, 253);
   doc.rect(0, 0, 210, 297, "F");
@@ -274,7 +276,7 @@ export async function downloadOfficeInvoice(
     y += rowHeight;
   });
 
-  // Summary
+    // Summary
   y += 8;
 
   doc.setFillColor(46, 123, 190);
@@ -283,7 +285,7 @@ export async function downloadOfficeInvoice(
     20,
     y,
     170,
-    42,
+    54,
     3,
     3,
     "F"
@@ -296,22 +298,34 @@ export async function downloadOfficeInvoice(
   doc.text(
     "Cleaning",
     30,
-    y + 12
+    y + 11
   );
 
   doc.text(
     "Expenses",
     30,
-    y + 22
+    y + 20
+  );
+
+  doc.text(
+    "Subtotal",
+    30,
+    y + 29
+  );
+
+  doc.text(
+    "HST (13%)",
+    30,
+    y + 38
   );
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(15);
 
   doc.text(
     "TOTAL DUE",
     30,
-    y + 34
+    y + 48
   );
 
   doc.setFont("helvetica", "normal");
@@ -320,27 +334,40 @@ export async function downloadOfficeInvoice(
   doc.text(
     formatMoney(totalCleaning),
     155,
-    y + 12,
+    y + 11,
     { align: "right" }
   );
 
   doc.text(
     formatMoney(totalExpenses),
     155,
-    y + 22,
+    y + 20,
+    { align: "right" }
+  );
+
+  doc.text(
+    formatMoney(totalDue),
+    155,
+    y + 29,
+    { align: "right" }
+  );
+
+  doc.text(
+    formatMoney(hstAmount),
+    155,
+    y + 38,
     { align: "right" }
   );
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(15);
 
   doc.text(
-    formatMoney(totalDue),
+    formatMoney(grandTotal),
     180,
-    y + 34,
+    y + 48,
     { align: "right" }
   );
-
   // Footer
   doc.setDrawColor(220);
 
