@@ -9,7 +9,9 @@ import {
   Receipt,
   Building2,
   Download,
+  Loader2,
 } from "lucide-react";
+
 import { getOfficeInvoices, Invoice } from "@/lib/invoices";
 import { downloadOfficeInvoice } from "@/lib/officeInvoice";
 
@@ -23,6 +25,9 @@ export default function OfficeInvoiceDetailPage() {
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingInvoiceId, setSavingInvoiceId] = useState<number | null>(
+    null
+  );
 
   useEffect(() => {
     async function loadInvoices() {
@@ -55,14 +60,54 @@ export default function OfficeInvoiceDetailPage() {
     }
   }, [ownerId, periodStart, periodEnd]);
 
-  /*
-   * IMPORTANT:
-   * Totals are taken directly from the stored invoices.
-   *
-   * We DO NOT calculate HST here.
-   * invoice.total_due is already the final amount for that
-   * individual invoice.
-   */
+  async function toggleInvoiceHst(invoice: Invoice) {
+    const invoiceId = Number(invoice.id);
+    const currentValue = Boolean(invoice.hst_enabled);
+    const nextValue = !currentValue;
+
+    try {
+      setSavingInvoiceId(invoiceId);
+
+      const response = await fetch("/api/invoices", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "set-invoice-hst",
+          invoiceId,
+          enabled: nextValue,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || "Failed to update invoice HST"
+        );
+      }
+
+      const updatedInvoice = result.data;
+
+      setInvoices((current) =>
+        current.map((item) =>
+          Number(item.id) === invoiceId
+            ? {
+                ...item,
+                ...updatedInvoice,
+              }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error("Failed to update invoice HST:", error);
+      alert("Unable to update HST for this invoice.");
+    } finally {
+      setSavingInvoiceId(null);
+    }
+  }
+
   const totals = useMemo(() => {
     const cleaning = invoices.reduce(
       (sum, invoice) =>
@@ -76,6 +121,18 @@ export default function OfficeInvoiceDetailPage() {
       0
     );
 
+    const hst = invoices.reduce((sum, invoice) => {
+      if (!invoice.hst_enabled) {
+        return sum;
+      }
+
+      const subtotal =
+        Number(invoice.total_cleaning || 0) +
+        Number(invoice.total_expenses || 0);
+
+      return sum + subtotal * 0.13;
+    }, 0);
+
     const total = invoices.reduce(
       (sum, invoice) =>
         sum + Number(invoice.total_due || 0),
@@ -85,6 +142,7 @@ export default function OfficeInvoiceDetailPage() {
     return {
       cleaning,
       expenses,
+      hst,
       total,
     };
   }, [invoices]);
@@ -93,7 +151,7 @@ export default function OfficeInvoiceDetailPage() {
     invoices[0]?.owners?.name ||
     `Owner #${ownerId}`;
 
-  const formatDate = (date: string) => {
+  function formatDate(date: string) {
     return new Date(`${date}T00:00:00`).toLocaleDateString(
       "en-US",
       {
@@ -102,24 +160,23 @@ export default function OfficeInvoiceDetailPage() {
         year: "numeric",
       }
     );
-  };
+  }
 
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+  function formatMoney(amount: number) {
+    return new Intl.NumberFormat("en-CA", {
       style: "currency",
-      currency: "USD",
+      currency: "CAD",
     }).format(Number(amount || 0));
-  };
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f4f7fb] p-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="rounded-3xl bg-white p-10 shadow-sm">
-            <p className="text-[#5f7691]">
-              Loading invoice...
-            </p>
-          </div>
+      <div className="min-h-screen bg-[#f4f7fb] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-10 w-10 animate-spin text-[#2E7BBE]" />
+          <p className="mt-4 text-slate-500">
+            Loading invoice...
+          </p>
         </div>
       </div>
     );
@@ -130,7 +187,9 @@ export default function OfficeInvoiceDetailPage() {
       <div className="min-h-screen bg-[#f4f7fb] p-8">
         <div className="mx-auto max-w-6xl">
           <button
-            onClick={() => router.push("/dashboard/invoices")}
+            onClick={() =>
+              router.push("/dashboard/invoices")
+            }
             className="mb-6 flex items-center gap-2 text-[#246fae] hover:underline"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -159,7 +218,9 @@ export default function OfficeInvoiceDetailPage() {
 
         {/* BACK */}
         <button
-          onClick={() => router.push("/dashboard/invoices")}
+          onClick={() =>
+            router.push("/dashboard/invoices")
+          }
           className="mb-6 flex items-center gap-2 text-sm font-medium text-[#246fae] hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -219,17 +280,14 @@ export default function OfficeInvoiceDetailPage() {
                 Download PDF
               </button>
             </div>
-
           </div>
         </div>
 
         {/* SUMMARY */}
-        <div className="mb-6 grid gap-5 md:grid-cols-3">
+        <div className="mb-6 grid gap-5 md:grid-cols-4">
 
-          {/* PROPERTIES */}
           <div className="rounded-3xl bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
-
               <div className="rounded-xl bg-[#e9f3fb] p-3">
                 <Building2 className="h-5 w-5 text-[#2779b9]" />
               </div>
@@ -243,14 +301,11 @@ export default function OfficeInvoiceDetailPage() {
                   {invoices.length}
                 </p>
               </div>
-
             </div>
           </div>
 
-          {/* CLEANING */}
           <div className="rounded-3xl bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
-
               <div className="rounded-xl bg-[#edf7f0] p-3">
                 <Receipt className="h-5 w-5 text-[#3d8a5b]" />
               </div>
@@ -264,14 +319,11 @@ export default function OfficeInvoiceDetailPage() {
                   {formatMoney(totals.cleaning)}
                 </p>
               </div>
-
             </div>
           </div>
 
-          {/* EXPENSES */}
           <div className="rounded-3xl bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
-
               <div className="rounded-xl bg-[#fff5e8] p-3">
                 <Receipt className="h-5 w-5 text-[#c9822b]" />
               </div>
@@ -285,7 +337,24 @@ export default function OfficeInvoiceDetailPage() {
                   {formatMoney(totals.expenses)}
                 </p>
               </div>
+            </div>
+          </div>
 
+          <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-[#edf7f0] p-3">
+                <Receipt className="h-5 w-5 text-[#3d8a5b]" />
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#71869d]">
+                  HST
+                </p>
+
+                <p className="mt-1 text-2xl font-bold text-[#174f7d]">
+                  {formatMoney(totals.hst)}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -307,10 +376,12 @@ export default function OfficeInvoiceDetailPage() {
           <div className="divide-y divide-[#e8edf2]">
 
             {invoices.map((invoice) => {
-
               const hstEnabled = Boolean(
-                (invoice as any).hst_enabled
+                invoice.hst_enabled
               );
+
+              const saving =
+                savingInvoiceId === Number(invoice.id);
 
               return (
                 <div
@@ -318,7 +389,7 @@ export default function OfficeInvoiceDetailPage() {
                   className="px-8 py-6"
                 >
 
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
 
                     {/* PROPERTY */}
                     <div className="flex items-start gap-4">
@@ -339,28 +410,39 @@ export default function OfficeInvoiceDetailPage() {
                           </p>
                         )}
 
-                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
 
                           <p className="text-xs font-medium text-[#8a9aab]">
                             Invoice #{invoice.invoice_number}
                           </p>
 
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                          {/* INDIVIDUAL HST CONTROL */}
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() =>
+                              toggleInvoiceHst(invoice)
+                            }
+                            className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
                               hstEnabled
-                                ? "bg-[#e9f3fb] text-[#246fae]"
-                                : "bg-slate-100 text-slate-500"
+                                ? "bg-[#e9f3fb] text-[#246fae] hover:bg-[#dcecf8]"
+                                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                            } ${
+                              saving
+                                ? "cursor-wait opacity-60"
+                                : "cursor-pointer"
                             }`}
                           >
-                            {hstEnabled
-                              ? "HST 13%"
-                              : "HST Off"}
-                          </span>
+                            {saving
+                              ? "Saving..."
+                              : hstEnabled
+                              ? "HST 13% • ON"
+                              : "HST • OFF"}
+                          </button>
 
                         </div>
 
                       </div>
-
                     </div>
 
                     {/* AMOUNTS */}
@@ -373,7 +455,9 @@ export default function OfficeInvoiceDetailPage() {
 
                         <p className="mt-1 font-semibold text-[#174f7d]">
                           {formatMoney(
-                            Number(invoice.total_cleaning || 0)
+                            Number(
+                              invoice.total_cleaning || 0
+                            )
                           )}
                         </p>
                       </div>
@@ -385,7 +469,9 @@ export default function OfficeInvoiceDetailPage() {
 
                         <p className="mt-1 font-semibold text-[#174f7d]">
                           {formatMoney(
-                            Number(invoice.total_expenses || 0)
+                            Number(
+                              invoice.total_expenses || 0
+                            )
                           )}
                         </p>
                       </div>
@@ -397,7 +483,9 @@ export default function OfficeInvoiceDetailPage() {
 
                         <p className="mt-1 text-lg font-bold text-[#246fae]">
                           {formatMoney(
-                            Number(invoice.total_due || 0)
+                            Number(
+                              invoice.total_due || 0
+                            )
                           )}
                         </p>
                       </div>
@@ -415,7 +503,7 @@ export default function OfficeInvoiceDetailPage() {
           {/* GRAND TOTAL */}
           <div className="border-t border-[#dfe7ee] bg-[#f8fafc] px-8 py-7">
 
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 
               <div>
                 <p className="text-sm font-medium text-[#71869d]">
@@ -428,6 +516,14 @@ export default function OfficeInvoiceDetailPage() {
               </div>
 
               <div className="text-left md:text-right">
+
+                <div className="mb-1 flex justify-end gap-4 text-sm text-slate-500">
+                  <span>HST:</span>
+                  <span className="font-semibold text-slate-700">
+                    {formatMoney(totals.hst)}
+                  </span>
+                </div>
+
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#71869d]">
                   Total Due
                 </p>
@@ -435,6 +531,7 @@ export default function OfficeInvoiceDetailPage() {
                 <p className="mt-1 text-4xl font-bold text-[#246fae]">
                   {formatMoney(totals.total)}
                 </p>
+
               </div>
 
             </div>

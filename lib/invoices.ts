@@ -24,9 +24,21 @@ export type Invoice = {
   property_name: string;
   property_address?: string | null;
 
-   total_cleaning: number;
+  total_cleaning: number;
   total_expenses: number;
+
+  /**
+   * Final amount stored in the database.
+   *
+   * IMPORTANT:
+   * This already includes HST when hst_enabled === true.
+   */
   total_due: number;
+
+  /**
+   * HST belongs to the individual invoice.
+   * It is NOT a global application setting.
+   */
   hst_enabled: boolean;
 
   status: string;
@@ -98,6 +110,20 @@ export async function getOfficeInvoices() {
   return (
     (await invoiceRequest("list-office")) ?? []
   );
+}
+
+// ==========================================
+// UPDATE HST FOR ONE INVOICE
+// ==========================================
+
+export async function setInvoiceHst(
+  invoiceId: number,
+  enabled: boolean
+): Promise<Invoice> {
+  return await invoiceRequest("set-invoice-hst", {
+    invoiceId,
+    enabled,
+  });
 }
 
 // ==========================================

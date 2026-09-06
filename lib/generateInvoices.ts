@@ -193,7 +193,7 @@ const totalDue = subtotal + hstAmount;
           period_end: end,
           property_name: property.name,
           property_address: property.address ?? null,
-          total_cleaning: totalCleaning,
+         total_cleaning: totalCleaning,
 total_expenses: totalExpenses,
 total_due: totalDue,
 hst_enabled: hstEnabled,
