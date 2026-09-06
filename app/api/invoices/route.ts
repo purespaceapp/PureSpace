@@ -457,11 +457,14 @@ if (!grouped.has(key)) {
               total_expenses:
                 Number(invoice.total_expenses ?? 0),
 
-              total_due:
-                Number(invoice.total_due ?? 0),
+            total_due:
+  Number(invoice.total_due ?? 0),
 
-              status:
-                invoice.status || "Finalized",
+hst_enabled:
+  Boolean(invoice.hst_enabled),
+
+status:
+  invoice.status || "Finalized",
             },
           ])
           .select()

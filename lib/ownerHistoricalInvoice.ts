@@ -25,6 +25,7 @@ type HistoricalOwnerInvoice = {
   total_cleaning: number;
   total_expenses: number;
   total_due: number;
+  hst_enabled: boolean;
 };
 
 export async function downloadHistoricalOwnerInvoice(
@@ -51,9 +52,10 @@ export async function downloadHistoricalOwnerInvoice(
   Number(invoice.total_cleaning || 0) +
   Number(invoice.total_expenses || 0);
 
-const hstAmount = subtotal * 0.13;
-const grandTotal = subtotal + hstAmount;
-
+const hstAmount = invoice.hst_enabled
+  ? subtotal * 0.13
+  : 0;
+const grandTotal = Number(invoice.total_due || 0);
   // Background
   doc.setFillColor(250, 251, 253);
   doc.rect(0, 0, 210, 297, "F");
@@ -318,37 +320,6 @@ doc.text(
   y + 38,
   { align: "right" }
 );
-
-  doc.text(
-    formatMoney(invoice.total_expenses),
-    155,
-    y + 19,
-    { align: "right" }
-  );
-
-  doc.text(
-    formatMoney(subtotal),
-    155,
-    y + 28,
-    { align: "right" }
-  );
-
-  doc.text(
-    formatMoney(hstAmount),
-    155,
-    y + 37,
-    { align: "right" }
-  );
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-
-  doc.text(
-    formatMoney(grandTotal),
-    180,
-    y + 44,
-    { align: "right" }
-  );
 
   // Footer
   doc.setDrawColor(220);

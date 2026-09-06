@@ -68,16 +68,12 @@ export default function OwnerInvoicesPage() {
 
   const totalInvoices =
     filteredInvoices.length;
+
 const totalAmount = filteredInvoices.reduce(
   (sum, invoice) =>
-    sum +
-    Number(invoice.total_cleaning || 0) +
-    Number(invoice.total_expenses || 0),
+    sum + Number(invoice.total_due || 0),
   0
 );
-
-const totalHst = totalAmount * 0.13;
-const totalWithHst = totalAmount + totalHst;
 
   const groupedByPeriod = useMemo(() => {
     const groups = new Map<
@@ -221,11 +217,11 @@ const totalWithHst = totalAmount + totalHst;
 </p>
 
 <h2 className="text-5xl font-bold mt-3 text-[#2E7BBE]">
-  ${totalWithHst.toFixed(2)}
+ ${totalAmount.toFixed(2)}
 </h2>
 
 <p className="mt-2 text-sm text-slate-400">
-  Includes HST (13%)
+ 
 </p>
           </div>
 
@@ -286,34 +282,23 @@ const totalWithHst = totalAmount + totalHst;
                   </h2>
 
                 </div>
-
-                <div className="text-right">
-
-                  <div className="text-right">
-
+                
+<div className="text-right">
   <p className="text-sm text-slate-500">
     Period Total
   </p>
 
   <p className="text-2xl font-bold text-[#2E7BBE]">
     $
-    {(
-      group.invoices.reduce(
+    {group.invoices
+      .reduce(
         (sum, invoice) =>
-          sum +
-          Number(invoice.total_cleaning || 0) +
-          Number(invoice.total_expenses || 0),
+          sum + Number(invoice.total_due || 0),
         0
-      ) * 1.13
-    ).toFixed(2)}
+      )
+      .toFixed(2)}
   </p>
-
-  <p className="mt-1 text-xs text-slate-400">
-    Includes HST (13%)
-  </p>
-
 </div>
-                </div>
 
               </div>
 
@@ -397,17 +382,11 @@ const totalWithHst = totalAmount + totalHst;
 
                      <td className="px-6 py-6 text-center">
   <p className="font-bold text-[#2E7BBE]">
-    $
-    {(
-      (
-        Number(invoice.total_cleaning || 0) +
-        Number(invoice.total_expenses || 0)
-      ) * 1.13
-    ).toFixed(2)}
-  </p>
-
+  $
+  {Number(invoice.total_due || 0).toFixed(2)}
+</p>
   <p className="mt-1 text-xs text-slate-400">
-    HST included
+   {invoice.hst_enabled ? "HST included" : "HST not applied"}
   </p>
 </td>
 
@@ -437,6 +416,7 @@ const totalWithHst = totalAmount + totalHst;
         total_cleaning: Number(invoice.total_cleaning || 0),
         total_expenses: Number(invoice.total_expenses || 0),
         total_due: Number(invoice.total_due || 0),
+        hst_enabled: Boolean(invoice.hst_enabled),
       })
     }
     className="border border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#EAF4FB] px-5 py-3 rounded-xl font-semibold transition"
