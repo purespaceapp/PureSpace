@@ -1,3 +1,4 @@
+
 import jsPDF from "jspdf";
 
 async function getLogo() {
@@ -39,28 +40,49 @@ export async function downloadHistoricalOwnerInvoice(
     `$${Number(amount || 0).toFixed(2)}`;
 
   const formatDate = (date: string) =>
-    
-    new Date(`${date}T00:00:00`).toLocaleDateString(
-      "en-US",
-      {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }
-    );
-    const subtotal =
-  Number(invoice.total_cleaning || 0) +
-  Number(invoice.total_expenses || 0);
+    new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
 
-const hstAmount = invoice.hst_enabled
-  ? subtotal * 0.13
-  : 0;
-const grandTotal = Number(invoice.total_due || 0);
-  // Background
+  /*
+   * IMPORTANT:
+   * Historical invoices use the values stored in the invoice.
+   *
+   * We DO NOT recalculate total_due here.
+   * This prevents HST from being applied twice.
+   */
+
+  const cleaningTotal = Number(invoice.total_cleaning || 0);
+  const expensesTotal = Number(invoice.total_expenses || 0);
+
+  const subtotal = cleaningTotal + expensesTotal;
+
+  /*
+   * The stored total_due is the source of truth.
+   *
+   * If HST is enabled, the amount stored in total_due already
+   * includes HST because the API updates it when the invoice
+   * HST setting changes.
+   */
+  const grandTotal = Number(invoice.total_due || subtotal);
+
+  const hstAmount = invoice.hst_enabled
+    ? Math.max(0, grandTotal - subtotal)
+    : 0;
+
+  // ============================================================
+  // PAGE BACKGROUND
+  // ============================================================
+
   doc.setFillColor(250, 251, 253);
   doc.rect(0, 0, 210, 297, "F");
 
-  // Header
+  // ============================================================
+  // HEADER
+  // ============================================================
+
   doc.setFillColor(46, 123, 190);
   doc.rect(0, 0, 210, 40, "F");
 
@@ -73,7 +95,7 @@ const grandTotal = Number(invoice.total_due || 0);
     28
   );
 
-  doc.setTextColor(255);
+  doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
 
@@ -92,9 +114,12 @@ const grandTotal = Number(invoice.total_due || 0);
     28
   );
 
-  // Invoice information
-  doc.setTextColor(40);
-  doc.setDrawColor(220);
+  // ============================================================
+  // INVOICE INFORMATION
+  // ============================================================
+
+  doc.setTextColor(40, 40, 40);
+  doc.setDrawColor(220, 220, 220);
 
   doc.line(
     20,
@@ -121,11 +146,19 @@ const grandTotal = Number(invoice.total_due || 0);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
 
+  /*
+   * PROPERTY NAME APPEARS ONLY ONCE.
+   */
+
   doc.text(
     invoice.property_name,
     20,
     68
   );
+
+  /*
+   * Address is separate from the property name.
+   */
 
   if (invoice.property_address) {
     const addressLines = doc.splitTextToSize(
@@ -161,7 +194,10 @@ const grandTotal = Number(invoice.total_due || 0);
     88
   );
 
-  // Billing period
+  // ============================================================
+  // BILLING PERIOD
+  // ============================================================
+
   doc.setFillColor(235, 244, 255);
 
   doc.roundedRect(
@@ -174,7 +210,7 @@ const grandTotal = Number(invoice.total_due || 0);
     "F"
   );
 
-  doc.setTextColor(40);
+  doc.setTextColor(40, 40, 40);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
 
@@ -194,8 +230,10 @@ const grandTotal = Number(invoice.total_due || 0);
     102
   );
 
-   
-  // Charges
+  // ============================================================
+  // CHARGES
+  // ============================================================
+
   let y = 122;
 
   doc.setFont("helvetica", "bold");
@@ -225,7 +263,7 @@ const grandTotal = Number(invoice.total_due || 0);
   );
 
   doc.text(
-    formatMoney(invoice.total_cleaning),
+    formatMoney(cleaningTotal),
     165,
     y
   );
@@ -239,14 +277,14 @@ const grandTotal = Number(invoice.total_due || 0);
   );
 
   doc.text(
-    formatMoney(invoice.total_expenses),
+    formatMoney(expensesTotal),
     165,
     y
   );
 
   y += 8;
 
-  doc.setDrawColor(220);
+  doc.setDrawColor(220, 220, 220);
 
   doc.line(
     20,
@@ -256,73 +294,88 @@ const grandTotal = Number(invoice.total_due || 0);
   );
 
   y += 14;
- // Total
-doc.setFillColor(46, 123, 190);
 
-doc.roundedRect(
-  20,
-  y,
-  170,
-  48,
-  3,
-  3,
-  "F"
-);
+  // ============================================================
+  // TOTAL BOX
+  // ============================================================
 
-doc.setTextColor(255);
-doc.setFont("helvetica", "normal");
-doc.setFontSize(10);
+  doc.setFillColor(46, 123, 190);
 
-doc.text(
-  "Subtotal",
-  28,
-  y + 11
-);
+  doc.roundedRect(
+    20,
+    y,
+    170,
+    48,
+    3,
+    3,
+    "F"
+  );
 
-doc.text(
-  "HST (13%)",
-  28,
-  y + 21
-);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
 
-doc.setFont("helvetica", "bold");
-doc.setFontSize(16);
+  // SUBTOTAL
 
-doc.text(
-  "TOTAL DUE",
-  28,
-  y + 38
-);
+  doc.text(
+    "Subtotal",
+    28,
+    y + 11
+  );
 
-doc.setFont("helvetica", "normal");
-doc.setFontSize(10);
+  doc.text(
+    formatMoney(subtotal),
+    180,
+    y + 11,
+    {
+      align: "right",
+    }
+  );
 
-doc.text(
-  formatMoney(subtotal),
-  180,
-  y + 11,
-  { align: "right" }
-);
+  // HST
 
-doc.text(
-  formatMoney(hstAmount),
-  180,
-  y + 21,
-  { align: "right" }
-);
+  doc.text(
+    invoice.hst_enabled
+      ? "HST (13%)"
+      : "HST (13%) — Not Applied",
+    28,
+    y + 21
+  );
 
-doc.setFont("helvetica", "bold");
-doc.setFontSize(16);
+  doc.text(
+    formatMoney(hstAmount),
+    180,
+    y + 21,
+    {
+      align: "right",
+    }
+  );
 
-doc.text(
-  formatMoney(grandTotal),
-  180,
-  y + 38,
-  { align: "right" }
-);
+  // TOTAL
 
-  // Footer
-  doc.setDrawColor(220);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+
+  doc.text(
+    "TOTAL DUE",
+    28,
+    y + 38
+  );
+
+  doc.text(
+    formatMoney(grandTotal),
+    180,
+    y + 38,
+    {
+      align: "right",
+    }
+  );
+
+  // ============================================================
+  // FOOTER
+  // ============================================================
+
+  doc.setDrawColor(220, 220, 220);
 
   doc.line(
     20,
@@ -333,7 +386,7 @@ doc.text(
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(120);
+  doc.setTextColor(120, 120, 120);
 
   doc.text(
     "PURESPACE CLEANING",
@@ -359,7 +412,17 @@ doc.text(
     293
   );
 
+  // ============================================================
+  // DOWNLOAD
+  // ============================================================
+
+  const safePropertyName =
+    invoice.property_name.replace(
+      /[^a-zA-Z0-9-_ ]/g,
+      ""
+    );
+
   doc.save(
-    `Invoice-${invoice.property_name}-${invoice.period_start}-${invoice.period_end}.pdf`
+    `Invoice-${safePropertyName}-${invoice.period_start}-${invoice.period_end}.pdf`
   );
 }

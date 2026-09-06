@@ -83,47 +83,60 @@ export default function OwnerStatementPage() {
 
           <button
             onClick={() =>
-  router.push("/owner-home")
-}
+              router.push("/owner-home")
+            }
             className="mt-8 bg-[#2E7BBE] hover:bg-[#23649D] text-white px-6 py-3 rounded-xl font-semibold"
           >
-          ← Back to Owner Portal
+            ← Back to Owner Portal
           </button>
         </div>
       </main>
     );
   }
 
-  const items =
-    invoice.items ?? [];
+  const items = invoice.items ?? [];
 
-  const cleaningItems =
-    items.filter(
-      (item) =>
-        item.item_type === "cleaning"
-    );
+  const cleaningItems = items.filter(
+    (item) =>
+      item.item_type === "cleaning"
+  );
 
-  const extraItems =
-    items.filter(
-      (item) =>
-        item.item_type === "extra"
-    );
+  const extraItems = items.filter(
+    (item) =>
+      item.item_type === "extra"
+  );
 
-  const expenseItems =
-    items.filter(
-      (item) =>
-        item.item_type === "expense" ||
-        item.item_type === "receipt"
-    );
+  const expenseItems = items.filter(
+    (item) =>
+      item.item_type === "expense" ||
+      item.item_type === "receipt"
+  );
 
-      const subtotal =
+  /*
+   * IMPORTANT:
+   * Historical invoices already store their final
+   * totals in the database.
+   *
+   * We only calculate the subtotal for display.
+   * HST is displayed according to the invoice's
+   * saved hst_enabled value.
+   *
+   * TOTAL DUE always comes from invoice.total_due.
+   */
+
+  const subtotal =
     Number(invoice.total_cleaning || 0) +
     Number(invoice.total_expenses || 0);
 
-  const hstAmount = subtotal * 0.13;
-  const grandTotal = subtotal + hstAmount;
+  const hstEnabled =
+    Boolean(invoice.hst_enabled);
 
+  const hstAmount = hstEnabled
+    ? subtotal * 0.13
+    : 0;
 
+  const grandTotal =
+    Number(invoice.total_due || 0);
 
   return (
     <main className="min-h-screen bg-[#F5F7FA] px-6 py-12">
@@ -148,9 +161,11 @@ export default function OwnerStatementPage() {
                   {invoice.property_name}
                 </h1>
 
-                <p className="text-blue-100 text-lg mt-3">
-                  {invoice.property_address}
-                </p>
+                {invoice.property_address && (
+                  <p className="text-blue-100 text-lg mt-3">
+                    {invoice.property_address}
+                  </p>
+                )}
 
               </div>
 
@@ -275,7 +290,8 @@ export default function OwnerStatementPage() {
                           </td>
 
                           <td className="px-6 py-4 text-right font-semibold">
-                            ${Number(
+                            $
+                            {Number(
                               item.amount
                             ).toFixed(2)}
                           </td>
@@ -391,11 +407,7 @@ export default function OwnerStatementPage() {
               </div>
 
             )}
-const subtotal =
-  Number(invoice.total_cleaning || 0) +
-  Number(invoice.total_expenses || 0);
 
-const hstAmount = subtotal * 0.13;
             {/* TOTAL */}
 
             <div className="mt-12 ml-auto max-w-md">
@@ -439,7 +451,8 @@ const hstAmount = subtotal * 0.13;
                   </span>
 
                   <span className="font-semibold">
-                    ${subtotal.toFixed(2)}
+                    $
+                    {subtotal.toFixed(2)}
                   </span>
 
                 </div>
@@ -451,7 +464,8 @@ const hstAmount = subtotal * 0.13;
                   </span>
 
                   <span className="font-semibold">
-                    ${hstAmount.toFixed(2)}
+                    $
+                    {hstAmount.toFixed(2)}
                   </span>
 
                 </div>
@@ -463,7 +477,8 @@ const hstAmount = subtotal * 0.13;
                   </span>
 
                   <span className="text-2xl font-bold text-[#2E7BBE]">
-                    ${grandTotal.toFixed(2)}
+                    $
+                    {grandTotal.toFixed(2)}
                   </span>
 
                 </div>
@@ -472,19 +487,18 @@ const hstAmount = subtotal * 0.13;
 
             </div>
 
-          
             {/* ACTIONS */}
 
             <div className="mt-10 flex flex-col md:flex-row gap-4">
 
               <button
-  onClick={() =>
-    router.push("/owner-home")
-  }
-  className="flex-1 border-2 border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#2E7BBE] hover:text-white font-bold py-4 rounded-2xl transition"
->
-  ← Back to Owner Portal
-</button>
+                onClick={() =>
+                  router.push("/owner-home")
+                }
+                className="flex-1 border-2 border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#2E7BBE] hover:text-white font-bold py-4 rounded-2xl transition"
+              >
+                ← Back to Owner Portal
+              </button>
 
             </div>
 
