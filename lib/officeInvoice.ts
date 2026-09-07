@@ -22,6 +22,7 @@ type OfficeInvoiceProperty = {
   total_cleaning: number;
   total_expenses: number;
   total_due: number;
+  hst_enabled?: boolean;
 };
 
 type OfficeInvoiceData = {
@@ -51,6 +52,16 @@ export async function downloadOfficeInvoice(
       }
     );
 
+  // =========================================================
+  // IMPORTANT:
+  // Each invoice already contains its final total_due.
+  //
+  // HST is controlled INDIVIDUALLY per invoice in the
+  // Office Dashboard.
+  //
+  // This PDF must NEVER apply 13% again.
+  // =========================================================
+
   const totalCleaning = data.invoices.reduce(
     (sum, invoice) =>
       sum + Number(invoice.total_cleaning || 0),
@@ -63,19 +74,34 @@ export async function downloadOfficeInvoice(
     0
   );
 
-  const totalDue = data.invoices.reduce(
+  // This is the authoritative final amount from the invoices.
+  const grandTotal = data.invoices.reduce(
     (sum, invoice) =>
       sum + Number(invoice.total_due || 0),
     0
   );
-  const HST_RATE = 0.13;
-  const hstAmount = totalDue * HST_RATE;
-  const grandTotal = totalDue + hstAmount;
-  // Background
+
+  const subtotal = totalCleaning + totalExpenses;
+
+  // HST already included in the individual invoice totals.
+  // Therefore we derive the applied HST instead of multiplying
+  // the consolidated total by 13%.
+  const hstAmount = Math.max(
+    0,
+    grandTotal - subtotal
+  );
+
+  // =========================================================
+  // BACKGROUND
+  // =========================================================
+
   doc.setFillColor(250, 251, 253);
   doc.rect(0, 0, 210, 297, "F");
 
-  // Header
+  // =========================================================
+  // HEADER
+  // =========================================================
+
   doc.setFillColor(46, 123, 190);
   doc.rect(0, 0, 210, 40, "F");
 
@@ -107,7 +133,10 @@ export async function downloadOfficeInvoice(
     28
   );
 
-  // Owner / period information
+  // =========================================================
+  // OWNER / PERIOD
+  // =========================================================
+
   doc.setTextColor(40);
   doc.setDrawColor(220);
 
@@ -155,7 +184,10 @@ export async function downloadOfficeInvoice(
     78
   );
 
-  // Table header
+  // =========================================================
+  // TABLE HEADER
+  // =========================================================
+
   doc.setFillColor(235, 244, 255);
 
   doc.roundedRect(
@@ -198,12 +230,16 @@ export async function downloadOfficeInvoice(
 
   let y = 109;
 
-  // Property rows
+  // =========================================================
+  // PROPERTY ROWS
+  // =========================================================
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
 
   data.invoices.forEach((invoice) => {
-    const propertyName = invoice.property_name || "Property";
+    const propertyName =
+      invoice.property_name || "Property";
 
     doc.setTextColor(40);
 
@@ -249,6 +285,9 @@ export async function downloadOfficeInvoice(
       y
     );
 
+    // IMPORTANT:
+    // Use the invoice's final stored total.
+    // Do NOT calculate HST here.
     doc.setFont("helvetica", "bold");
 
     doc.text(
@@ -276,7 +315,10 @@ export async function downloadOfficeInvoice(
     y += rowHeight;
   });
 
-    // Summary
+  // =========================================================
+  // SUMMARY
+  // =========================================================
+
   y += 8;
 
   doc.setFillColor(46, 123, 190);
@@ -346,7 +388,7 @@ export async function downloadOfficeInvoice(
   );
 
   doc.text(
-    formatMoney(totalDue),
+    formatMoney(subtotal),
     155,
     y + 29,
     { align: "right" }
@@ -368,7 +410,11 @@ export async function downloadOfficeInvoice(
     y + 48,
     { align: "right" }
   );
-  // Footer
+
+  // =========================================================
+  // FOOTER
+  // =========================================================
+
   doc.setDrawColor(220);
 
   doc.line(
@@ -405,6 +451,10 @@ export async function downloadOfficeInvoice(
     100,
     293
   );
+
+  // =========================================================
+  // DOWNLOAD
+  // =========================================================
 
   doc.save(
     `Invoice-${data.ownerName}-${data.periodStart}-${data.periodEnd}.pdf`
