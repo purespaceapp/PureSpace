@@ -517,38 +517,9 @@ setMonthlyTotal(totalThisMonth);
 
                     </button>
 <button
-  onClick={async () => {
-    const ownerId = sessionStorage.getItem("ownerId");
-
-    if (!ownerId) {
-      router.replace("/owner-login");
-      return;
-    }
-
-    const { getOwnerInvoices } = await import("@/lib/invoices");
-
-    const invoices = await getOwnerInvoices(Number(ownerId));
-
-    const propertyInvoices = invoices
-      .filter(
-        (invoice: any) =>
-          Number(invoice.property_id) === Number(property.id)
-      )
-      .sort(
-        (a: any, b: any) =>
-          new Date(b.period_end).getTime() -
-          new Date(a.period_end).getTime()
-      );
-
-    const latestInvoice = propertyInvoices[0];
-
-    if (!latestInvoice) {
-      alert("No invoice is available for this property yet.");
-      return;
-    }
-
+  onClick={() => {
     router.push(
-      `/owner-statement/${latestInvoice.id}`
+      `/owner-current-statement?propertyId=${property.id}`
     );
   }}
   className="rounded-2xl border-2 border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#2E7BBE] hover:text-white py-4 font-semibold flex items-center justify-center gap-2 transition-all duration-300"

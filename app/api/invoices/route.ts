@@ -148,7 +148,254 @@ const invoices = await generateInvoicesForPeriod({
         data: invoices,
       });
     }
+    // ==========================================
+    // CURRENT OWNER STATEMENT BY PROPERTY
+    // ==========================================
 
+    if (action === "current-property-statement") {
+      const propertyId = Number(body.propertyId);
+
+      if (!propertyId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Missing property ID",
+          },
+          { status: 400 }
+        );
+      }
+
+      // ------------------------------------------
+      // Property + owner
+      // ------------------------------------------
+
+      const { data: property, error: propertyError } =
+        await supabaseAdmin
+          .from("properties")
+          .select(`
+            id,
+            name,
+            address,
+            owner_id
+          `)
+          .eq("id", propertyId)
+          .maybeSingle();
+
+      if (propertyError) throw propertyError;
+
+      if (!property) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Property not found",
+          },
+          { status: 404 }
+        );
+      }
+
+      // ------------------------------------------
+      // Determine current billing period
+      // ------------------------------------------
+
+      const now = new Date();
+
+      const year = now.getUTCFullYear();
+      const month = now.getUTCMonth();
+      const day = now.getUTCDate();
+
+      let periodStart: string;
+      let periodEnd: string;
+
+      if (day <= 15) {
+        periodStart = `${year}-${String(
+          month + 1
+        ).padStart(2, "0")}-01`;
+
+        periodEnd = `${year}-${String(
+          month + 1
+        ).padStart(2, "0")}-15`;
+      } else {
+        const lastDay = new Date(
+          Date.UTC(year, month + 1, 0)
+        ).getUTCDate();
+
+        periodStart = `${year}-${String(
+          month + 1
+        ).padStart(2, "0")}-16`;
+
+        periodEnd = `${year}-${String(
+          month + 1
+        ).padStart(2, "0")}-${String(lastDay).padStart(
+          2,
+          "0"
+        )}`;
+      }
+
+      // ------------------------------------------
+      // Completed cleanings
+      // ------------------------------------------
+
+      const { data: schedules, error: schedulesError } =
+        await supabaseAdmin
+          .from("schedule")
+          .select(`
+            id,
+            cleaning_date,
+            company_charge,
+            notes
+          `)
+          .eq("property_id", propertyId)
+          .eq("status", "Completed")
+          .gte("cleaning_date", periodStart)
+          .lte("cleaning_date", periodEnd)
+          .order("cleaning_date", {
+            ascending: true,
+          });
+
+      if (schedulesError) throw schedulesError;
+
+      // ------------------------------------------
+      // Approved property expenses
+      // ------------------------------------------
+
+      const { data: receipts, error: receiptsError } =
+        await supabaseAdmin
+          .from("receipts")
+          .select(`
+            id,
+            schedule_id,
+            purchase_date,
+            amount,
+            office_notes
+          `)
+          .eq("property_id", propertyId)
+          .eq("status", "Approved")
+          .gte("purchase_date", periodStart)
+          .lte("purchase_date", periodEnd)
+          .order("purchase_date", {
+            ascending: true,
+          });
+
+      if (receiptsError) throw receiptsError;
+
+      // ------------------------------------------
+      // Cleaning total
+      // ------------------------------------------
+
+      const totalCleaning = (schedules ?? []).reduce(
+        (total: number, schedule: any) =>
+          total + Number(schedule.company_charge || 0),
+        0
+      );
+
+      // ------------------------------------------
+      // Expense total
+      // ------------------------------------------
+
+      const totalExpenses = (receipts ?? []).reduce(
+        (total: number, receipt: any) =>
+          total + Number(receipt.amount || 0),
+        0
+      );
+
+      const subtotal =
+        totalCleaning + totalExpenses;
+
+      // ------------------------------------------
+      // Current HST setting
+      // ------------------------------------------
+
+      const { data: hstSetting, error: hstError } =
+        await supabaseAdmin
+          .from("app_settings")
+          .select("value")
+          .eq("key", "hst_enabled")
+          .maybeSingle();
+
+      if (hstError) throw hstError;
+
+      const hstEnabled =
+        hstSetting?.value === "true";
+
+      const hstAmount = hstEnabled
+        ? subtotal * 0.13
+        : 0;
+
+      const totalDue = subtotal + hstAmount;
+
+      // ------------------------------------------
+      // Build statement items
+      // ------------------------------------------
+
+      const cleaningItems = (schedules ?? []).map(
+        (schedule: any) => ({
+          id: `schedule-${schedule.id}`,
+          item_type: "cleaning",
+          schedule_id: schedule.id,
+          receipt_id: null,
+          item_date: schedule.cleaning_date,
+          description: "Regular Cleaning",
+          quantity: 1,
+          unit_price: Number(
+            schedule.company_charge || 0
+          ),
+          amount: Number(
+            schedule.company_charge || 0
+          ),
+        })
+      );
+
+      const expenseItems = (receipts ?? []).map(
+        (receipt: any) => ({
+          id: `receipt-${receipt.id}`,
+          item_type: "expense",
+          schedule_id:
+            receipt.schedule_id ?? null,
+          receipt_id: receipt.id,
+          item_date: receipt.purchase_date,
+          description:
+            receipt.office_notes ||
+            "Property Expense",
+          quantity: 1,
+          unit_price: Number(
+            receipt.amount || 0
+          ),
+          amount: Number(
+            receipt.amount || 0
+          ),
+        })
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          property: {
+            id: property.id,
+            name: property.name,
+            address: property.address,
+            owner_id: property.owner_id,
+          },
+
+          period_start: periodStart,
+          period_end: periodEnd,
+
+          status: "Current",
+
+          total_cleaning: totalCleaning,
+          total_expenses: totalExpenses,
+
+          subtotal,
+          hst_enabled: hstEnabled,
+          hst_amount: hstAmount,
+          total_due: totalDue,
+
+          items: [
+            ...cleaningItems,
+            ...expenseItems,
+          ],
+        },
+      });
+    }
     // ==========================================
     // LIST OWNER INVOICE HISTORY
     // ==========================================

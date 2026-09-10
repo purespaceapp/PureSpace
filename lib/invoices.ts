@@ -145,3 +145,17 @@ export async function createInvoice(
     items,
   });
 }
+// ==========================================
+// CURRENT OWNER STATEMENT
+// ==========================================
+
+export async function getCurrentOwnerStatement(
+  propertyId: number
+) {
+  return await invoiceRequest(
+    "current-property-statement",
+    {
+      propertyId,
+    }
+  );
+}
