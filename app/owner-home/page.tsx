@@ -15,7 +15,7 @@ import {
   LogOut,
   Headphones,
 } from "lucide-react";
-
+import { getOwnerInvoices, type Invoice } from "@/lib/invoices";
 import { getProperties } from "@/lib/properties";
 import { getOwners, acceptOwnerTerms } from "@/lib/owners";
 import { getMaintenanceIssues } from "@/lib/maintenance";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/schedule";
 
 export default function OwnerHomePage() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const router = useRouter();
 
   const [properties, setProperties] = useState<any[]>([]);
@@ -52,6 +53,8 @@ useEffect(() => {
     }
 
     const numericOwnerId = Number(ownerId);
+    const ownerInvoices = await getOwnerInvoices(numericOwnerId);
+setInvoices(ownerInvoices);
 
     const owners = await getOwners();
 
@@ -513,19 +516,47 @@ setMonthlyTotal(totalThisMonth);
                       <ArrowRight className="w-5 h-5"/>
 
                     </button>
+<button
+  onClick={async () => {
+    const ownerId = sessionStorage.getItem("ownerId");
 
-                    <button
-                      onClick={() =>
-                        router.push(`/owner-statement/${property.id}`)
-                      }
-                      className="rounded-2xl border-2 border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#2E7BBE] hover:text-white py-4 font-semibold flex items-center justify-center gap-2 transition-all duration-300"
-                    >
+    if (!ownerId) {
+      router.replace("/owner-login");
+      return;
+    }
 
-                      <FileText className="w-5 h-5"/>
+    const { getOwnerInvoices } = await import("@/lib/invoices");
 
-                      Statement
+    const invoices = await getOwnerInvoices(Number(ownerId));
 
-                    </button>
+    const propertyInvoices = invoices
+      .filter(
+        (invoice: any) =>
+          Number(invoice.property_id) === Number(property.id)
+      )
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.period_end).getTime() -
+          new Date(a.period_end).getTime()
+      );
+
+    const latestInvoice = propertyInvoices[0];
+
+    if (!latestInvoice) {
+      alert("No invoice is available for this property yet.");
+      return;
+    }
+
+    router.push(
+      `/owner-statement/${latestInvoice.id}`
+    );
+  }}
+  className="rounded-2xl border-2 border-[#2E7BBE] text-[#2E7BBE] hover:bg-[#2E7BBE] hover:text-white py-4 font-semibold flex items-center justify-center gap-2 transition-all duration-300"
+>
+  <FileText className="w-5 h-5" />
+
+  Statement
+</button>
 
                   </div>
 
