@@ -2,8 +2,10 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { FileText, ArrowLeft } from "lucide-react";
+import { FileText, ArrowLeft, Download } from "lucide-react";
+import { downloadOwnerInvoice } from "@/lib/ownerInvoice";
 import { getCurrentOwnerStatement } from "@/lib/invoices";
+import { downloadHistoricalOwnerInvoice } from "@/lib/ownerHistoricalInvoice";
 
 type StatementItem = {
   id: string | number;
@@ -108,6 +110,22 @@ function CurrentOwnerStatementContent() {
 
     load();
   }, [propertyId, router]);
+
+    async function handleDownload() {
+    if (!statement) return;
+
+    await downloadHistoricalOwnerInvoice({
+      invoice_number: `CURRENT-${statement.property.id}-${statement.period_start}`,
+      property_name: statement.property.name,
+      property_address: statement.property.address,
+      period_start: statement.period_start,
+      period_end: statement.period_end,
+      total_cleaning: Number(statement.total_cleaning || 0),
+      total_expenses: Number(statement.total_expenses || 0),
+      total_due: Number(statement.total_due || 0),
+      hst_enabled: Boolean(statement.hst_enabled),
+    });
+  }
 
   if (loading) {
     return (
@@ -501,7 +519,14 @@ function CurrentOwnerStatementContent() {
                 <FileText className="w-5 h-5" />
                 Invoice History
               </button>
-
+              <button
+                onClick={handleDownload}
+                className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-2xl transition flex items-center justify-center gap-2"
+              >
+                <Download className="w-5 h-5" />
+                Download PDF
+              </button>
+              
             </div>
 
           </div>
@@ -514,6 +539,7 @@ function CurrentOwnerStatementContent() {
   );
 }
 export default function CurrentOwnerStatementPage() {
+  
   return (
     <Suspense
       fallback={

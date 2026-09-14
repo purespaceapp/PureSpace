@@ -125,22 +125,9 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-const { data: hstSetting, error: hstError } =
-  await supabaseAdmin
-    .from("app_settings")
-    .select("value")
-    .eq("key", "hst_enabled")
-    .single();
-
-if (hstError) throw hstError;
-
-const hstEnabled =
-  hstSetting?.value === "true";
-
 const invoices = await generateInvoicesForPeriod({
   start: body.start,
   end: body.end,
-  hstEnabled,
 });
 
       return NextResponse.json({
@@ -148,6 +135,129 @@ const invoices = await generateInvoicesForPeriod({
         data: invoices,
       });
     }
+// ==========================================
+// ACTIVE PERIOD HST
+// ==========================================
+
+if (action === "get-current-period-hst") {
+  const propertyId = Number(body.propertyId);
+
+  if (!propertyId) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Missing property ID",
+      },
+      { status: 400 }
+    );
+  }
+
+  const now = new Date();
+
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const day = now.getUTCDate();
+
+  let periodStart: string;
+  let periodEnd: string;
+
+  if (day <= 15) {
+    periodStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    periodEnd = `${year}-${String(month + 1).padStart(2, "0")}-15`;
+  } else {
+    const lastDay = new Date(
+      Date.UTC(year, month + 1, 0)
+    ).getUTCDate();
+
+    periodStart = `${year}-${String(month + 1).padStart(2, "0")}-16`;
+    periodEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+      lastDay
+    ).padStart(2, "0")}`;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("invoice_period_settings")
+    .select("hst_enabled")
+    .eq("property_id", propertyId)
+    .eq("period_start", periodStart)
+    .eq("period_end", periodEnd)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      property_id: propertyId,
+      period_start: periodStart,
+      period_end: periodEnd,
+      hst_enabled: data?.hst_enabled ?? false,
+    },
+  });
+}
+
+if (action === "set-current-period-hst") {
+  const propertyId = Number(body.propertyId);
+  const enabled = Boolean(body.enabled);
+
+  if (!propertyId) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Missing property ID",
+      },
+      { status: 400 }
+    );
+  }
+
+  const now = new Date();
+
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const day = now.getUTCDate();
+
+  let periodStart: string;
+  let periodEnd: string;
+
+  if (day <= 15) {
+    periodStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    periodEnd = `${year}-${String(month + 1).padStart(2, "0")}-15`;
+  } else {
+    const lastDay = new Date(
+      Date.UTC(year, month + 1, 0)
+    ).getUTCDate();
+
+    periodStart = `${year}-${String(month + 1).padStart(2, "0")}-16`;
+    periodEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+      lastDay
+    ).padStart(2, "0")}`;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("invoice_period_settings")
+    .upsert(
+      {
+        property_id: propertyId,
+        period_start: periodStart,
+        period_end: periodEnd,
+        hst_enabled: enabled,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "property_id,period_start,period_end",
+      }
+    )
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return NextResponse.json({
+    success: true,
+    data,
+  });
+}
+
     // ==========================================
     // CURRENT OWNER STATEMENT BY PROPERTY
     // ==========================================
@@ -302,26 +412,23 @@ const invoices = await generateInvoicesForPeriod({
         totalCleaning + totalExpenses;
 
       // ------------------------------------------
-      // Current HST setting
-      // ------------------------------------------
+// Current period HST setting
+// ------------------------------------------
 
-      const { data: hstSetting, error: hstError } =
-        await supabaseAdmin
-          .from("app_settings")
-          .select("value")
-          .eq("key", "hst_enabled")
-          .maybeSingle();
+const { data: periodHstSetting, error: periodHstError } =
+  await supabaseAdmin
+    .from("invoice_period_settings")
+    .select("hst_enabled")
+    .eq("property_id", propertyId)
+    .eq("period_start", periodStart)
+    .eq("period_end", periodEnd)
+    .maybeSingle();
 
-      if (hstError) throw hstError;
+if (periodHstError) throw periodHstError;
 
-      const hstEnabled =
-        hstSetting?.value === "true";
+const hstEnabled =
+  periodHstSetting?.hst_enabled ?? false;
 
-      const hstAmount = hstEnabled
-        ? subtotal * 0.13
-        : 0;
-
-      const totalDue = subtotal + hstAmount;
 
       // ------------------------------------------
       // Build statement items
