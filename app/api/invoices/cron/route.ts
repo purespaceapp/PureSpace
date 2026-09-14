@@ -78,12 +78,17 @@ export async function GET(request: Request) {
         generated: 0,
       });
     }
+const { data: hstSetting, error: hstError } =
+  await supabaseAdmin
+    .from("app_settings")
+    .select("value")
+    .eq("key", "hst_enabled")
+    .single();
 
-   const hstEnabled = false;
+if (hstError) throw hstError;
 
-const hstAmount = 0;
-
-const totalDue = subtotal;
+const hstEnabled =
+  hstSetting?.value === "true";
 
 const invoices =
   await generateInvoicesForPeriod({

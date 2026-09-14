@@ -429,6 +429,11 @@ if (periodHstError) throw periodHstError;
 const hstEnabled =
   periodHstSetting?.hst_enabled ?? false;
 
+const hstAmount = hstEnabled
+  ? subtotal * 0.13
+  : 0;
+
+const totalDue = subtotal + hstAmount;
 
       // ------------------------------------------
       // Build statement items
