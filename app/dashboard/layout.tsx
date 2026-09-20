@@ -5,8 +5,6 @@ import Image from "next/image";
 
 import { usePathname, useRouter } from "next/navigation";
 
-
-
 import {
   LayoutDashboard,
   Building2,
@@ -26,39 +24,34 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
-
   const pathname = usePathname();
-
   const router = useRouter();
 
   function handleLogout() {
-  router.replace("/office-login");
-}
+    router.replace("/office-login");
+  }
 
   function menuItem(
     href: string,
     label: string,
     icon: React.ReactNode
   ) {
-
-    const active = pathname === href;
+    const active =
+      pathname === href ||
+      (href !== "/dashboard" &&
+        pathname.startsWith(`${href}/`));
 
     return (
-            <Link
+      <Link
         href={href}
-        className={`group relative flex items-center gap-4 rounded-2xl px-5 py-4 transition-all duration-300
-
-        ${
+        className={`group relative flex items-center gap-4 rounded-2xl px-5 py-3.5 transition-all duration-300 ${
           active
             ? "bg-white text-[#1F4E79] shadow-lg"
             : "text-blue-100 hover:bg-white/10 hover:text-white"
         }`}
       >
-
         {active && (
-
-          <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-[#61C6D9]" />
-
+          <div className="absolute bottom-2 top-2 left-0 w-1 rounded-r-full bg-[#61C6D9]" />
         )}
 
         <div
@@ -66,101 +59,74 @@ export default function DashboardLayout({
             active ? "text-[#2E7BBE]" : ""
           }`}
         >
-
           {icon}
-
         </div>
 
         <span className="font-semibold">
-
           {label}
-
         </span>
-
       </Link>
-
     );
-
   }
 
   return (
-
     <div className="flex min-h-screen bg-[#F4F7FB]">
-
-      {/* SIDEBAR */}
-
-      <aside className="w-[290px] bg-[#1F4E79] text-white flex flex-col shadow-2xl">
-
-        {/* LOGO */}
-
-        <div className="border-b border-white/10 px-8 py-8">
-
+      <aside className="flex w-[270px] shrink-0 flex-col bg-[#1F4E79] text-white shadow-2xl">
+        <div className="border-b border-white/10 px-7 py-7">
           <div className="flex items-center gap-4">
-
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white shadow-lg">
-
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-lg">
               <Image
                 src="/images/logo.jpg"
                 alt="PureSpace"
-                width={50}
-                height={50}
-                className="rounded-2xl"
+                width={46}
+                height={46}
+                className="rounded-xl"
               />
-
             </div>
 
             <div>
-
-              <h1 className="text-[30px] font-extrabold">
-
+              <h1 className="text-2xl font-extrabold">
                 PureSpace
-
               </h1>
 
-              <p className="text-sm text-blue-200">
-
+              <p className="text-xs text-blue-200">
                 Office Dashboard
-
               </p>
-
             </div>
-
           </div>
-
         </div>
 
-        {/* MENU */}
-
-        <nav className="flex-1 overflow-y-auto px-6 py-8">
-
-          <p className="mb-4 px-3 text-xs uppercase tracking-[0.30em] text-blue-200">
-
+        <nav className="flex-1 overflow-y-auto px-5 py-7">
+          <p className="mb-3 px-3 text-[11px] uppercase tracking-[0.3em] text-blue-200">
             Main
-
           </p>
-<div className="space-y-2">
 
-  {menuItem(
-    "/dashboard/receipts",
-    "Receipts",
-    <Receipt className="h-5 w-5" />
-  )}
+          <div className="space-y-1.5">
+            {menuItem(
+              "/dashboard",
+              "Dashboard",
+              <LayoutDashboard className="h-5 w-5" />
+            )}
 
-  {menuItem(
-    "/dashboard/invoices",
-    "Invoices",
-    <FileText className="h-5 w-5" />
-  )}
+            {menuItem(
+              "/dashboard/receipts",
+              "Receipts",
+              <Receipt className="h-5 w-5" />
+            )}
 
-</div>
-          <p className="mt-10 mb-4 px-3 text-xs uppercase tracking-[0.30em] text-blue-200">
+            {menuItem(
+              "/dashboard/invoices",
+              "Invoices",
+              <FileText className="h-5 w-5" />
+            )}
+          </div>
 
+          <p className="mb-3 mt-8 px-3 text-[11px] uppercase tracking-[0.3em] text-blue-200">
             Operations
-
           </p>
 
-          <div className="space-y-2">
-                        {menuItem(
+          <div className="space-y-1.5">
+            {menuItem(
               "/dashboard/properties",
               "Properties",
               <Building2 className="h-5 w-5" />
@@ -177,101 +143,57 @@ export default function DashboardLayout({
               "Schedule",
               <CalendarDays className="h-5 w-5" />
             )}
-            {menuItem(
-  "/dashboard/maintenance",
-  "Maintenance",
-  <Wrench className="h-5 w-5" />
-)}
-
-          </div>
-
-          <p className="mt-10 mb-4 px-3 text-xs uppercase tracking-[0.30em] text-blue-200">
-
-            Finance
-
-          </p>
-
-          <div className="space-y-2">
 
             {menuItem(
-              "/dashboard/receipts",
-              "Receipts",
-              <Receipt className="h-5 w-5" />
+              "/dashboard/maintenance",
+              "Maintenance",
+              <Wrench className="h-5 w-5" />
             )}
-
           </div>
 
-          <p className="mt-10 mb-4 px-3 text-xs uppercase tracking-[0.30em] text-blue-200">
-
+          <p className="mb-3 mt-8 px-3 text-[11px] uppercase tracking-[0.3em] text-blue-200">
             Clients
-
           </p>
 
-          <div className="space-y-2">
-
+          <div className="space-y-1.5">
             {menuItem(
               "/owner-home",
               "Owner Portal",
               <UserRound className="h-5 w-5" />
             )}
-
           </div>
-
         </nav>
 
-        {/* FOOTER */}
-
-        <div className="border-t border-white/10 p-6">
-
-          <div className="mb-5 flex items-center gap-4">
-
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#163A5A] border border-white/10 font-bold text-lg">
-
+        <div className="border-t border-white/10 p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#163A5A] font-bold">
               S
-
             </div>
 
             <div>
-
               <p className="font-semibold">
-
                 Sara Lopez
-
               </p>
 
               <p className="text-xs text-blue-200">
-
                 Office Admin
-
               </p>
-
             </div>
-
           </div>
 
           <button
             onClick={handleLogout}
             className="flex w-full items-center justify-center gap-3 rounded-2xl bg-red-500 py-3 font-semibold text-white transition hover:bg-red-600"
           >
-
             <LogOut className="h-5 w-5" />
-
             Logout
-
           </button>
-
         </div>
-
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
-
+      <main className="min-w-0 flex-1 overflow-y-auto">
         {children}
-
       </main>
-
     </div>
-
   );
-
 }

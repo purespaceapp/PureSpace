@@ -42,6 +42,44 @@ export async function createMaintenanceIssue(
   });
 }
 
+export async function uploadMaintenancePhoto(
+  file: File,
+  propertyId: number
+) {
+  const formData = new FormData();
+
+  formData.append("file", file);
+  formData.append(
+    "propertyId",
+    String(propertyId)
+  );
+
+  const response = await fetch(
+    "/api/maintenance/upload",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Maintenance photo upload failed"
+    );
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(
+      result.error ||
+        "Maintenance photo upload failed"
+    );
+  }
+
+  return result.data.publicUrl as string;
+}
+
 export async function resolveMaintenanceIssue(
   id: number
 ) {
