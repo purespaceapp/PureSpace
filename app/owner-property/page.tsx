@@ -1,58 +1,169 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  Home,
-  MapPin,
-  CalendarDays,
-  FileText,
-  DollarSign,
-  AlertTriangle,
-  KeyRound,
-  Receipt,
-  Wrench,
-  StickyNote,
-  Building2,
   ArrowLeft,
+  ArrowRight,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
   ExternalLink,
+  FileText,
+  Home,
+  KeyRound,
+  MapPin,
+  Receipt,
   ShieldCheck,
+  StickyNote,
+  Wrench,
+  Wifi,
+  Car,
+  DollarSign,
+  Clock3,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 
 import {
   getProperties,
   updateAirbnbConnection,
 } from "@/lib/properties";
+
 import { getSchedulesByProperty } from "@/lib/schedule";
 import { getEmployees } from "@/lib/employees";
 import { getReceiptsByProperty } from "@/lib/receipts";
 import { getMaintenanceByProperty } from "@/lib/maintenance";
+
 function formatScheduleDate(value: unknown) {
   if (!value) return "Date unavailable";
 
-  const stringValue = String(value);
-
-  // Treat YYYY-MM-DD as a calendar date, without timezone conversion.
-  const match = stringValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
-
-  if (match) {
-    const [, year, month, day] = match;
-
-    return `${Number(day)}/${Number(month)}/${year}`;
-  }
-
-  const date = new Date(stringValue);
+  const date = new Date(String(value));
 
   if (Number.isNaN(date.getTime())) {
-    return stringValue;
+    return String(value);
   }
 
-  return date.toLocaleDateString();
+  return date.toLocaleDateString("en-CA", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatShortDate(value: unknown) {
+  if (!value) return "—";
+
+  const date = new Date(String(value));
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleDateString("en-CA", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function SectionHeader({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="flex items-center gap-4 mb-7">
+      <div className="w-12 h-12 rounded-2xl bg-[#EAF4FE] flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+
+      <div>
+        <h2 className="text-xl md:text-2xl font-bold text-[#17324D]">
+          {title}
+        </h2>
+
+        {subtitle && (
+          <p className="text-sm text-slate-500 mt-1">
+            {subtitle}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  subtitle?: string;
+}) {
+  return (
+    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-500">
+            {label}
+          </p>
+
+          <p className="text-2xl font-bold text-[#17324D] mt-2">
+            {value}
+          </p>
+
+          {subtitle && (
+            <p className="text-xs text-slate-400 mt-1">
+              {subtitle}
+            </p>
+          )}
+        </div>
+
+        <div className="w-11 h-11 rounded-2xl bg-[#EAF4FE] flex items-center justify-center text-[#2E7BBE]">
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 py-10 px-6 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-white shadow-sm mx-auto flex items-center justify-center text-slate-300">
+        {icon}
+      </div>
+
+      <p className="font-semibold text-slate-600 mt-4">
+        {title}
+      </p>
+
+      {description && (
+        <p className="text-sm text-slate-400 mt-1">
+          {description}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function OwnerPropertyPage() {
-
   const router = useRouter();
 
   const [property, setProperty] = useState<any>(null);
@@ -60,18 +171,17 @@ export default function OwnerPropertyPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [receipts, setReceipts] = useState<any[]>([]);
   const [issues, setIssues] = useState<any[]>([]);
-  const [showAirbnbModal, setShowAirbnbModal] = useState(false);
 
-const [listingUrl, setListingUrl] = useState("");
+  const [showAirbnbModal, setShowAirbnbModal] =
+    useState(false);
 
-const [calendarUrl, setCalendarUrl] = useState("");
-
-const [savingAirbnb, setSavingAirbnb] = useState(false);
+  const [listingUrl, setListingUrl] = useState("");
+  const [calendarUrl, setCalendarUrl] = useState("");
+  const [savingAirbnb, setSavingAirbnb] =
+    useState(false);
 
   useEffect(() => {
-
     async function load() {
-
       const propertyId =
         sessionStorage.getItem("selectedProperty");
 
@@ -79,256 +189,252 @@ const [savingAirbnb, setSavingAirbnb] = useState(false);
         sessionStorage.getItem("ownerId");
 
       if (!propertyId || !ownerId) {
-
         router.replace("/owner-home");
-
         return;
-
       }
 
-      const properties =
-        await getProperties(Number(ownerId));
+      try {
+        const properties = await getProperties(
+          Number(ownerId)
+        );
+const selected = properties.find(
+  (p: any) => p.id === Number(propertyId)
+);
+        if (!selected) {
+          router.replace("/owner-home");
+          return;
+        }
 
-      const selected =
-        properties.find(
-          (p) => p.id === Number(propertyId)
+        setProperty(selected);
+
+        setListingUrl(
+          selected.airbnb_listing_url || ""
         );
 
-      setProperty(selected);
-      if (selected) {
-
-  setListingUrl(
-    selected.airbnb_listing_url || ""
-  );
-
-  setCalendarUrl(
-    selected.airbnb_calendar_url || ""
-  );
-
-}
-
-      const scheduleData =
-        await getSchedulesByProperty(
-          Number(propertyId)
+        setCalendarUrl(
+          selected.airbnb_calendar_url || ""
         );
 
-      setSchedules(scheduleData);
+        const [
+          scheduleData,
+          employeeData,
+          receiptData,
+          maintenanceData,
+        ] = await Promise.all([
+          getSchedulesByProperty(Number(propertyId)),
+          getEmployees(),
+          getReceiptsByProperty(Number(propertyId)),
+          getMaintenanceByProperty(Number(propertyId)),
+        ]);
 
-      const employeeData =
-        await getEmployees();
-
-      setEmployees(employeeData);
-
-      const receiptData =
-        await getReceiptsByProperty(
-          Number(propertyId)
+        setSchedules(scheduleData || []);
+        setEmployees(employeeData || []);
+        setReceipts(receiptData || []);
+        setIssues(maintenanceData || []);
+      } catch (error) {
+        console.error(
+          "Error loading property:",
+          error
         );
-
-      setReceipts(receiptData);
-
-      const maintenanceData =
-        await getMaintenanceByProperty(
-          Number(propertyId)
-        );
-
-      setIssues(maintenanceData);
-
+      }
     }
 
     load();
-
   }, [router]);
 
-  if (!property) {
+  async function saveAirbnbConnection() {
+    if (!property) return;
 
-    return (
+    if (
+      listingUrl.trim() === "" ||
+      calendarUrl.trim() === ""
+    ) {
+      alert("Please complete both Airbnb links.");
+      return;
+    }
 
-      <main className="min-h-screen flex items-center justify-center bg-[#F4F7FB]">
+    try {
+      setSavingAirbnb(true);
 
-        <p className="text-2xl font-semibold text-slate-600">
-
-          Loading Property...
-
-        </p>
-
-      </main>
-
-    );
-
-  }
-async function saveAirbnbConnection() {
-
-  if (!property) return;
-
-  if (
-    listingUrl.trim() === "" ||
-    calendarUrl.trim() === ""
-  ) {
-
-    alert("Please complete both Airbnb links.");
-
-    return;
-
-  }
-
-  try {
-
-    setSavingAirbnb(true);
-
-    await updateAirbnbConnection(
-      property.id,
-      {
+      await updateAirbnbConnection(property.id, {
         airbnb_listing_url: listingUrl,
         airbnb_calendar_url: calendarUrl,
         airbnb_connected: true,
-      }
-    );
+      });
 
-    setProperty({
-      ...property,
-      airbnb_listing_url: listingUrl,
-      airbnb_calendar_url: calendarUrl,
-      airbnb_connected: true,
-      last_airbnb_sync: new Date().toISOString(),
-    });
+      setProperty({
+        ...property,
+        airbnb_listing_url: listingUrl,
+        airbnb_calendar_url: calendarUrl,
+        airbnb_connected: true,
+        last_airbnb_sync:
+          new Date().toISOString(),
+      });
 
-    setShowAirbnbModal(false);
+      setShowAirbnbModal(false);
 
-    alert("Airbnb connected successfully!");
-
-  } catch (error) {
-
-    console.error(error);
-
-    alert("Unable to save the Airbnb connection.");
-
-  } finally {
-
-    setSavingAirbnb(false);
-
+      alert("Airbnb connected successfully!");
+    } catch (error) {
+      console.error(error);
+      alert(
+        "Unable to save the Airbnb connection."
+      );
+    } finally {
+      setSavingAirbnb(false);
+    }
   }
 
-}
-  return (
+  const upcomingCleanings = useMemo(
+    () =>
+      schedules
+        .filter(
+          (schedule) =>
+            schedule.status !== "Completed"
+        )
+        .sort(
+          (a, b) =>
+            new Date(
+              a.cleaning_date
+            ).getTime() -
+            new Date(
+              b.cleaning_date
+            ).getTime()
+        ),
+    [schedules]
+  );
 
-    <main className="min-h-screen bg-[#F4F7FB]">
-            {/* ================= HERO ================= */}
+  const completedCleanings = useMemo(
+    () =>
+      schedules
+        .filter(
+          (schedule) =>
+            schedule.status === "Completed"
+        )
+        .sort(
+          (a, b) =>
+            new Date(
+              b.cleaning_date
+            ).getTime() -
+            new Date(
+              a.cleaning_date
+            ).getTime()
+        ),
+    [schedules]
+  );
 
-      <section className="relative overflow-hidden bg-gradient-to-r from-[#1E4F85] via-[#2E7BBE] to-[#5DA9F6] text-white">
+  const nextCleaning =
+    upcomingCleanings[0] || null;
 
-        <div className="absolute inset-0 opacity-10">
+  const openMaintenance = issues.filter(
+    (issue) =>
+      issue.status?.toLowerCase() === "open"
+  );
 
-          <div className="absolute -top-28 -right-20 w-96 h-96 rounded-full bg-white"></div>
+  if (!property) {
+    return (
+      <main className="min-h-screen bg-[#F4F7FB] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center mx-auto">
+            <Building2 className="w-7 h-7 text-[#2E7BBE] animate-pulse" />
+          </div>
 
-          <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-white"></div>
+          <p className="text-lg font-semibold text-[#17324D] mt-5">
+            Loading property...
+          </p>
 
+          <p className="text-sm text-slate-400 mt-1">
+            Please wait a moment.
+          </p>
         </div>
+      </main>
+    );
+  }
 
-        <div className="relative max-w-7xl mx-auto px-8 py-14">
+  return (
+    <main className="min-h-screen bg-[#F4F7FB]">
+
+      {/* ===================================================== */}
+      {/* TOP PROPERTY HEADER                                  */}
+      {/* ===================================================== */}
+
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#173F70] via-[#246BA5] to-[#55A9EE] text-white">
+
+        <div className="absolute -top-32 -right-24 w-96 h-96 rounded-full bg-white/10" />
+        <div className="absolute -bottom-40 -left-20 w-96 h-96 rounded-full bg-white/10" />
+
+        <div className="relative max-w-7xl mx-auto px-6 md:px-8 pt-7 pb-10">
 
           <button
-            onClick={() => router.push("/owner-home")}
-            className="flex items-center gap-2 text-white/90 hover:text-white mb-10 transition"
+            onClick={() =>
+              router.push("/owner-home")
+            }
+            className="inline-flex items-center gap-2 text-white/80 hover:text-white transition mb-8"
           >
-            <ArrowLeft className="w-5 h-5" />
-
-            Back to Dashboard
+            <ArrowLeft className="w-4 h-4" />
+            Back to My Properties
           </button>
 
-          <div className="flex flex-col xl:flex-row justify-between gap-12">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
 
-            <div className="max-w-3xl">
+            <div className="min-w-0">
 
-              <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-5 py-2">
-
-                <ShieldCheck className="w-5 h-5" />
-
-                <span className="font-semibold">
-                  Active Property
-                </span>
-
+              <div className="inline-flex items-center gap-2 bg-white/15 border border-white/20 rounded-full px-4 py-2 text-sm font-semibold">
+                <ShieldCheck className="w-4 h-4" />
+                Active Property
               </div>
 
-              <h1 className="text-5xl font-bold mt-7">
-
+              <h1 className="text-4xl md:text-5xl font-bold mt-5 tracking-tight">
                 {property.name}
-
               </h1>
 
-              <div className="flex items-center gap-3 mt-5 text-xl text-blue-100">
-
-                <MapPin className="w-6 h-6" />
-
-                {property.address}
-
+              <div className="flex items-center gap-2 mt-4 text-blue-100">
+                <MapPin className="w-5 h-5 shrink-0" />
+                <span className="text-lg">
+                  {property.address}
+                </span>
               </div>
 
-              <p className="mt-8 text-lg text-blue-100 max-w-2xl leading-8">
-
-                Manage your property information, cleaning schedule,
-                maintenance requests, invoices and Airbnb connection
-                from one place.
-
+              <p className="mt-4 text-blue-100 max-w-2xl">
+                Manage cleaning activity, property
+                information, maintenance, receipts and
+                Airbnb connection from one place.
               </p>
 
             </div>
 
-            <div className="bg-white rounded-[34px] text-slate-800 shadow-2xl p-8 min-w-[340px]">
+            <div className="w-full lg:w-[290px] bg-white text-[#17324D] rounded-3xl p-6 shadow-2xl shrink-0">
 
-              <p className="uppercase tracking-[3px] text-[#2E7BBE] text-sm font-semibold">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[2px] font-bold text-[#2E7BBE]">
+                  Property Status
+                </p>
 
-                Property Summary
+                <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-xs font-bold">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  Active
+                </span>
+              </div>
 
-              </p>
+              <div className="grid grid-cols-2 gap-5 mt-6">
 
-              <div className="space-y-7 mt-8">
+                <div>
+                  <p className="text-xs text-slate-400">
+                    Cleaning Price
+                  </p>
 
-                <div className="flex justify-between">
+                  <p className="text-2xl font-bold mt-1">
+                    ${property.company_price ?? 0}
+                  </p>
+                </div>
 
-                  <span className="text-slate-500">
+                <div>
+                  <p className="text-xs text-slate-400">
                     Cleanings
-                  </span>
+                  </p>
 
-                  <span className="font-bold">
+                  <p className="text-2xl font-bold mt-1">
                     {schedules.length}
-                  </span>
-
-                </div>
-
-                <div className="flex justify-between">
-
-                  <span className="text-slate-500">
-                    Receipts
-                  </span>
-
-                  <span className="font-bold">
-                    {receipts.length}
-                  </span>
-
-                </div>
-
-                <div className="flex justify-between">
-
-                  <span className="text-slate-500">
-                    Maintenance
-                  </span>
-
-                  <span className="font-bold">
-                    {issues.length}
-                  </span>
-
-                </div>
-
-                <div className="flex justify-between">
-
-                  <span className="text-slate-500">
-                    Status
-                  </span>
-
-                  <span className="text-green-600 font-bold">
-                    Active
-                  </span>
-
+                  </p>
                 </div>
 
               </div>
@@ -338,329 +444,241 @@ async function saveAirbnbConnection() {
           </div>
 
         </div>
-
       </section>
-            {/* ================= OVERVIEW ================= */}
 
-      <section className="max-w-7xl mx-auto px-8 mt-12">
+      {/* ===================================================== */}
+      {/* QUICK STATS                                           */}
+      {/* ===================================================== */}
 
-        <div className="grid xl:grid-cols-2 gap-8">
+      <section className="max-w-7xl mx-auto px-6 md:px-8 -mt-5 relative z-10">
 
-          {/* General Information */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
 
-          <div className="bg-white rounded-[34px] shadow-xl border border-slate-100 p-8">
+          <StatCard
+            icon={<CalendarDays className="w-5 h-5" />}
+            label="Next Cleaning"
+            value={
+              nextCleaning
+                ? formatShortDate(
+                    nextCleaning.cleaning_date
+                  )
+                : "—"
+            }
+            subtitle={
+              nextCleaning
+                ? (() => {
+                    const employee =
+                      employees.find(
+                        (e) =>
+                          Number(e.id) ===
+                          Number(
+                            nextCleaning.employee_id
+                          )
+                      );
 
-            <div className="flex items-center gap-3 mb-8">
+                    return (
+                      employee?.name ||
+                      "Unassigned"
+                    );
+                  })()
+                : "No upcoming cleaning"
+            }
+          />
 
-              <Home className="w-7 h-7 text-[#2E7BBE]" />
+          <StatCard
+            icon={<CheckCircle2 className="w-5 h-5" />}
+            label="Completed Cleanings"
+            value={completedCleanings.length}
+            subtitle="Cleaning history"
+          />
 
-              <h2 className="text-2xl font-bold text-slate-800">
-                General Information
-              </h2>
+          <StatCard
+            icon={<Wrench className="w-5 h-5" />}
+            label="Maintenance"
+            value={openMaintenance.length}
+            subtitle={
+              openMaintenance.length === 1
+                ? "Open issue"
+                : "Open issues"
+            }
+          />
 
-            </div>
+          <StatCard
+            icon={<Receipt className="w-5 h-5" />}
+            label="Receipts"
+            value={receipts.length}
+            subtitle="Property receipts"
+          />
 
-            <div className="space-y-5">
+        </div>
+      </section>
 
-              <div className="flex justify-between">
+      {/* ===================================================== */}
+      {/* PROPERTY DETAILS                                     */}
+      {/* ===================================================== */}
 
+      <section className="max-w-7xl mx-auto px-6 md:px-8 mt-10">
+
+        <div className="mb-5">
+          <p className="text-xs uppercase tracking-[2px] font-bold text-[#2E7BBE]">
+            Property Details
+          </p>
+
+          <h2 className="text-2xl font-bold text-[#17324D] mt-1">
+            Property Information
+          </h2>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+
+          {/* GENERAL */}
+
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-7">
+
+            <SectionHeader
+              icon={
+                <Home className="w-6 h-6 text-[#2E7BBE]" />
+              }
+              title="General Information"
+              subtitle="Basic property details"
+            />
+
+            <div className="divide-y divide-slate-100">
+
+              <div className="py-4 flex justify-between gap-6">
                 <span className="text-slate-500">
                   Property Name
                 </span>
 
-                <span className="font-semibold">
+                <span className="font-semibold text-right text-[#17324D]">
                   {property.name}
                 </span>
-
               </div>
 
-              <div className="flex justify-between">
-
+              <div className="py-4 flex justify-between gap-6">
                 <span className="text-slate-500">
                   Address
                 </span>
 
-                <span className="font-semibold text-right max-w-xs">
+                <span className="font-semibold text-right text-[#17324D] max-w-sm">
                   {property.address}
                 </span>
-
               </div>
 
-              <div className="flex justify-between">
-
+              <div className="py-4 flex justify-between gap-6">
                 <span className="text-slate-500">
                   Cleaning Price
                 </span>
 
-                <span className="font-semibold">
-                  ${property.company_price}
+                <span className="font-bold text-[#2E7BBE]">
+                  ${property.company_price ?? 0}
                 </span>
-
               </div>
 
             </div>
-
           </div>
 
-          {/* Access Information */}
+          {/* ACCESS */}
 
-          <div className="bg-white rounded-[34px] shadow-xl border border-slate-100 p-8">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-7">
 
-            <div className="flex items-center gap-3 mb-8">
+            <SectionHeader
+              icon={
+                <KeyRound className="w-6 h-6 text-[#2E7BBE]" />
+              }
+              title="Access Information"
+              subtitle="Information for property access"
+            />
 
-              <KeyRound className="w-7 h-7 text-[#2E7BBE]" />
+            <div className="grid sm:grid-cols-3 gap-4">
 
-              <h2 className="text-2xl font-bold text-slate-800">
-                Access Information
-              </h2>
+              <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5">
+                <KeyRound className="w-5 h-5 text-[#2E7BBE]" />
 
-            </div>
-
-            <div className="space-y-5">
-
-              <div>
-
-                <p className="text-slate-500 mb-2">
+                <p className="text-xs text-slate-400 mt-4">
                   Door Code
                 </p>
 
-                <p className="font-semibold">
-                  {property.door_code || "Not Available"}
+                <p className="font-bold text-[#17324D] mt-1">
+                  {property.door_code ||
+                    "Not Available"}
                 </p>
-
               </div>
 
-              <div>
+              <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5">
+                <Car className="w-5 h-5 text-[#2E7BBE]" />
 
-                <p className="text-slate-500 mb-2">
+                <p className="text-xs text-slate-400 mt-4">
                   Parking
                 </p>
 
-                <p className="font-semibold">
-                  {property.parking || "Not Available"}
+                <p className="font-bold text-[#17324D] mt-1">
+                  {property.parking ||
+                    "Not Available"}
                 </p>
-
               </div>
 
-              <div>
+              <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5">
+                <Wifi className="w-5 h-5 text-[#2E7BBE]" />
 
-                <p className="text-slate-500 mb-2">
+                <p className="text-xs text-slate-400 mt-4">
                   WiFi
                 </p>
 
-                <p className="font-semibold">
-                  {property.wifi || "Not Available"}
+                <p className="font-bold text-[#17324D] mt-1 break-words">
+                  {property.wifi ||
+                    "Not Available"}
                 </p>
-
               </div>
 
             </div>
-
-          </div>
-
-         {/* Airbnb Connection */}
-
-<div className="bg-white rounded-[34px] shadow-xl border border-slate-100 p-8">
-
-  <div className="flex items-center justify-between">
-
-    <div className="flex items-center gap-3">
-
-      <Building2 className="w-7 h-7 text-[#FF5A5F]" />
-
-      <h2 className="text-2xl font-bold text-slate-800">
-        Airbnb Connection
-      </h2>
-
-    </div>
-
-    <span
-      className={`px-4 py-2 rounded-full text-sm font-semibold ${
-    property.airbnb_calendar_url
-  ? "bg-yellow-100 text-yellow-700"
-  : "bg-slate-100 text-slate-600" 
-      }`}
-    >
-      property.airbnb_calendar_url
-  ? "Configuration Saved"
-  : "Not Configured"
-    </span>
-
-  </div>
-
-  <div className="space-y-6 mt-8">
-
-    <div>
-
-      <p className="text-slate-500 text-sm">
-
-        Listing URL
-
-      </p>
-
-      <p className="font-medium break-all mt-2">
-
-        {property.airbnb_listing_url ||
-          "No listing connected"}
-
-      </p>
-
-    </div>
-
-    <div>
-
-      <p className="text-slate-500 text-sm">
-
-        Calendar URL
-
-      </p>
-
-      <p className="font-medium break-all mt-2">
-
-        {property.airbnb_calendar_url ||
-          "No calendar connected"}
-
-      </p>
-
-    </div>
-
-    <div>
-
-      <p className="text-slate-500 text-sm">
-
-        Last Sync
-
-      </p>
-
-      <p className="font-medium mt-2">
-
-        {property.last_airbnb_sync
-          ? new Date(
-              property.last_airbnb_sync
-            ).toLocaleString()
-          : "Never"}
-
-      </p>
-
-    </div>
-
-  </div>
-
-  <div className="grid grid-cols-2 gap-4 mt-10">
-
-    <button
-      onClick={() => setShowAirbnbModal(true)}
-      className="rounded-2xl bg-[#FF5A5F] hover:bg-[#E14D52] text-white py-4 font-semibold transition"
-    >
-
-      Edit Connection
-
-    </button>
-
-    <button
-      disabled={!property.airbnb_listing_url}
-      onClick={() =>
-        window.open(
-          property.airbnb_listing_url,
-          "_blank"
-        )
-      }
-      className="rounded-2xl border-2 border-[#FF5A5F] text-[#FF5A5F] hover:bg-[#FF5A5F] hover:text-white py-4 font-semibold transition disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-[#FF5A5F]"
-    >
-
-      <div className="flex items-center justify-center gap-2">
-
-        <ExternalLink className="w-5 h-5" />
-
-        Open Listing
-
-      </div>
-
-    </button>
-
-  </div>
-
-</div>
-
-          {/* Calendar Sync */}
-
-          <div className="bg-white rounded-[34px] shadow-xl border border-slate-100 p-8">
-
-            <div className="flex items-center gap-3 mb-8">
-
-              <CalendarDays className="w-7 h-7 text-[#2E7BBE]" />
-
-              <h2 className="text-2xl font-bold text-slate-800">
-                Calendar Sync
-              </h2>
-
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-6">
-
-              <p className="text-slate-500">
-                Synchronization Status
-              </p>
-
-              <p className="font-bold text-xl mt-2 text-orange-500">
-                Pending Airbnb Connection
-              </p>
-
-            </div>
-
-            <p className="text-slate-500 mt-6">
-
-              Once Airbnb is connected, reservations and future cleanings will automatically appear here.
-
-            </p>
-
           </div>
 
         </div>
-
       </section>
-            {/* ================= CLEANINGS ================= */}
 
-      <section className="max-w-7xl mx-auto px-8 mt-12">
+      {/* ===================================================== */}
+      {/* CLEANING ACTIVITY                                    */}
+      {/* ===================================================== */}
 
-        <div className="grid xl:grid-cols-2 gap-8">
+      <section className="max-w-7xl mx-auto px-6 md:px-8 mt-10">
 
-          {/* Upcoming Cleanings */}
+        <div className="mb-5">
+          <p className="text-xs uppercase tracking-[2px] font-bold text-[#2E7BBE]">
+            Cleaning Activity
+          </p>
 
-          <div className="bg-white rounded-[34px] shadow-xl border border-slate-100 p-8">
+          <h2 className="text-2xl font-bold text-[#17324D] mt-1">
+            Schedule & History
+          </h2>
+        </div>
 
-            <div className="flex items-center gap-3 mb-8">
+        <div className="grid lg:grid-cols-2 gap-6">
 
-              <CalendarDays className="w-7 h-7 text-[#2E7BBE]" />
+          {/* UPCOMING */}
 
-              <h2 className="text-2xl font-bold text-slate-800">
-                Upcoming Cleanings
-              </h2>
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-7">
 
-            </div>
+            <SectionHeader
+              icon={
+                <CalendarDays className="w-6 h-6 text-[#2E7BBE]" />
+              }
+              title="Upcoming Cleanings"
+              subtitle="Scheduled cleaning visits"
+            />
 
-            {schedules.filter(
-              (schedule) => schedule.status !== "Completed"
-            ).length === 0 ? (
-
-              <div className="py-16 text-center">
-
-                <CalendarDays className="w-16 h-16 text-slate-300 mx-auto" />
-
-                <p className="text-slate-500 mt-6">
-                  No upcoming cleanings scheduled.
-                </p>
-
-              </div>
-
+            {upcomingCleanings.length === 0 ? (
+              <EmptyState
+                icon={
+                  <CalendarDays className="w-6 h-6" />
+                }
+                title="No upcoming cleanings"
+                description="There are no scheduled cleanings at the moment."
+              />
             ) : (
+              <div className="space-y-3">
 
-              <div className="space-y-5">
-
-                {schedules
-                  .filter(
-                    (schedule) => schedule.status !== "Completed"
-                  )
+                {upcomingCleanings
                   .slice(0, 5)
                   .map((schedule) => {
 
@@ -668,89 +686,74 @@ async function saveAirbnbConnection() {
                       employees.find(
                         (e) =>
                           Number(e.id) ===
-                          Number(schedule.employee_id)
+                          Number(
+                            schedule.employee_id
+                          )
                       );
 
                     return (
-
                       <div
                         key={schedule.id}
-                        className="rounded-2xl border border-slate-200 p-5 hover:border-[#2E7BBE] transition"
+                        className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 px-5 py-4"
                       >
 
-                        <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-4">
 
-                          <div>
-
-                            <p className="font-bold text-slate-800">
-{formatScheduleDate(schedule.cleaning_date)}
-                            </p>
-
-                            <p className="text-slate-500 mt-2">
-
-                              {employee?.name || "Unassigned"}
-
-                            </p>
-
+                          <div className="w-11 h-11 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+                            <CalendarDays className="w-5 h-5 text-[#2E7BBE]" />
                           </div>
 
-                          <span className="bg-blue-100 text-[#2E7BBE] px-4 py-2 rounded-full text-sm font-semibold">
+                          <div>
+                            <p className="font-bold text-[#17324D]">
+                              {formatScheduleDate(
+                                schedule.cleaning_date
+                              )}
+                            </p>
 
-                            {schedule.status}
-
-                          </span>
+                            <p className="text-sm text-slate-500 mt-1">
+                              {employee?.name ||
+                                "Unassigned"}
+                            </p>
+                          </div>
 
                         </div>
 
+                        <span className="px-3 py-1.5 rounded-full bg-blue-50 text-[#2E7BBE] text-xs font-bold">
+                          {schedule.status}
+                        </span>
+
                       </div>
-
                     );
-
                   })}
 
               </div>
-
             )}
-
           </div>
 
-          {/* Cleaning History */}
+          {/* HISTORY */}
 
-          <div className="bg-white rounded-[34px] shadow-xl border border-slate-100 p-8">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-7">
 
-            <div className="flex items-center gap-3 mb-8">
+            <SectionHeader
+              icon={
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              }
+              title="Cleaning History"
+              subtitle="Recently completed cleanings"
+            />
 
-              <Home className="w-7 h-7 text-[#2E7BBE]" />
-
-              <h2 className="text-2xl font-bold text-slate-800">
-                Cleaning History
-              </h2>
-
-            </div>
-
-            {schedules.filter(
-              (schedule) => schedule.status === "Completed"
-            ).length === 0 ? (
-
-              <div className="py-16 text-center">
-
-                <Home className="w-16 h-16 text-slate-300 mx-auto" />
-
-                <p className="text-slate-500 mt-6">
-                  No completed cleanings yet.
-                </p>
-
-              </div>
-
+            {completedCleanings.length === 0 ? (
+              <EmptyState
+                icon={
+                  <CheckCircle2 className="w-6 h-6" />
+                }
+                title="No completed cleanings"
+                description="Completed cleaning visits will appear here."
+              />
             ) : (
+              <div className="space-y-2">
 
-              <div className="space-y-5">
-
-                {schedules
-                  .filter(
-                    (schedule) =>
-                      schedule.status === "Completed"
-                  )
+                {completedCleanings
                   .slice(0, 5)
                   .map((schedule) => {
 
@@ -758,542 +761,643 @@ async function saveAirbnbConnection() {
                       employees.find(
                         (e) =>
                           Number(e.id) ===
-                          Number(schedule.employee_id)
+                          Number(
+                            schedule.employee_id
+                          )
                       );
 
                     return (
-
                       <div
                         key={schedule.id}
-                        className="flex gap-4"
+                        className="flex gap-4 py-4 border-b border-slate-100 last:border-0"
                       >
 
-                        <div className="w-4 flex justify-center">
-
-                          <div className="w-3 h-3 rounded-full bg-green-500 mt-2"></div>
-
+                        <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-green-600" />
                         </div>
 
-                        <div className="flex-1 pb-6 border-l border-slate-200 pl-6">
-
-                          <p className="font-bold text-slate-800">
-
-                           {formatScheduleDate(schedule.cleaning_date)}
-
+                        <div>
+                          <p className="font-bold text-[#17324D]">
+                            {formatScheduleDate(
+                              schedule.cleaning_date
+                            )}
                           </p>
 
-                          <p className="text-slate-500 mt-2">
-
+                          <p className="text-sm text-slate-500 mt-1">
                             Completed by{" "}
-                            {employee?.name || "Unknown"}
-
+                            {employee?.name ||
+                              "Unknown"}
                           </p>
-
                         </div>
 
                       </div>
-
                     );
-
                   })}
 
               </div>
-
             )}
-
           </div>
 
         </div>
-
       </section>
-            {/* ================= RECEIPTS / MAINTENANCE / NOTES ================= */}
 
-      <section className="max-w-7xl mx-auto px-8 mt-12">
+      {/* ===================================================== */}
+      {/* MAINTENANCE + RECEIPTS                               */}
+      {/* ===================================================== */}
 
-        <div className="grid gap-8">
+      <section className="max-w-7xl mx-auto px-6 md:px-8 mt-10">
 
-          {/* RECEIPTS */}
-
-          <div className="bg-white rounded-[34px] shadow-xl border border-slate-100 p-8">
-
-            <div className="flex items-center gap-3 mb-8">
-
-              <Receipt className="w-7 h-7 text-[#2E7BBE]" />
-
-              <h2 className="text-2xl font-bold text-slate-800">
-
-                Receipts
-
-              </h2>
-
-            </div>
-
-            {receipts.length === 0 ? (
-
-              <div className="py-16 text-center">
-
-                <Receipt className="w-16 h-16 mx-auto text-slate-300" />
-
-                <p className="text-slate-500 mt-6">
-
-                  No receipts available.
-
-                </p>
-
-              </div>
-
-            ) : (
-
-              <div className="space-y-5">
-
-                {receipts.map((receipt) => (
-
-                  <div
-                    key={receipt.id}
-                    className="rounded-2xl border border-slate-200 p-6 hover:border-[#2E7BBE] transition"
-                  >
-
-                    <div className="flex flex-col md:flex-row justify-between gap-6">
-
-                      <div>
-
-                        <h3 className="font-bold text-lg text-slate-800">
-
-                          {receipt.title || "Cleaning Receipt"}
-
-                        </h3>
-
-                        <p className="text-slate-500 mt-2">
-
-                          {receipt.description || "No description available."}
-
-                        </p>
-
-                      </div>
-
-                      <div className="text-right">
-
-                        <p className="text-sm text-slate-500">
-
-                          Amount
-
-                        </p>
-
-                        <p className="text-2xl font-bold text-[#2E7BBE]">
-
-                          ${receipt.amount}
-
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-            )}
-
-          </div>
+        <div className="grid lg:grid-cols-2 gap-6">
 
           {/* MAINTENANCE */}
 
-          <div className="bg-white rounded-[34px] shadow-xl border border-slate-100 p-8">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-7">
 
-            <div className="flex items-center gap-3 mb-8">
-
-              <Wrench className="w-7 h-7 text-[#2E7BBE]" />
-
-              <h2 className="text-2xl font-bold text-slate-800">
-
-                Maintenance Issues
-
-              </h2>
-
-            </div>
+            <SectionHeader
+              icon={
+                <Wrench className="w-6 h-6 text-[#2E7BBE]" />
+              }
+              title="Maintenance Issues"
+              subtitle="Reported property problems"
+            />
 
             {issues.length === 0 ? (
-
-              <div className="py-16 text-center">
-
-                <Wrench className="w-16 h-16 mx-auto text-slate-300" />
-
-                <p className="text-slate-500 mt-6">
-
-                  No maintenance issues reported.
-
-                </p>
-
-              </div>
-
+              <EmptyState
+                icon={
+                  <Wrench className="w-6 h-6" />
+                }
+                title="No maintenance issues"
+                description="There are no reported problems for this property."
+              />
             ) : (
+              <div className="space-y-3">
 
-              <div className="space-y-5">
-
-                {issues.map((issue) => (
+                {issues.slice(0, 5).map((issue) => (
 
                   <div
                     key={issue.id}
-                    className="rounded-2xl border border-slate-200 p-6"
+                    className="rounded-2xl border border-slate-100 bg-slate-50/60 p-5"
                   >
 
-                    <div className="flex justify-between gap-6">
+                    <div className="flex items-start justify-between gap-4">
 
-                      <div>
+                      <div className="min-w-0">
 
-                        <h3 className="font-bold text-xl text-slate-800">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
 
-                          {issue.issue_type}
+                          <h3 className="font-bold text-[#17324D]">
+                            {issue.issue_type}
+                          </h3>
+                        </div>
 
-                        </h3>
-
-                        <p className="text-slate-500 mt-3">
-
+                        <p className="text-sm text-slate-500 mt-2">
                           {issue.notes}
-
                         </p>
 
-                        <p className="text-sm text-slate-400 mt-4">
-
-                          {new Date(
-                            issue.reported_at
-                          ).toLocaleDateString()}
-
+                        <p className="text-xs text-slate-400 mt-3">
+                          {issue.reported_at
+                            ? new Date(
+                                issue.reported_at
+                              ).toLocaleDateString()
+                            : "Date unavailable"}
                         </p>
 
                       </div>
 
                       <span
-                        className={`h-fit px-5 py-2 rounded-full font-semibold ${
+                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${
                           issue.status === "Open"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-green-100 text-green-700"
+                            ? "bg-red-50 text-red-600"
+                            : "bg-green-50 text-green-600"
                         }`}
                       >
-
                         {issue.status}
-
                       </span>
 
                     </div>
+
+                    {issue.photo_url && (
+                      <a
+                        href={issue.photo_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 mt-4 text-sm font-semibold text-[#2E7BBE] hover:underline"
+                      >
+                        View Photo
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
 
                   </div>
 
                 ))}
 
               </div>
-
             )}
-
           </div>
 
-          {/* NOTES */}
+          {/* RECEIPTS */}
 
-          <div className="bg-white rounded-[34px] shadow-xl border border-slate-100 p-8">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-7">
 
-            <div className="flex items-center gap-3 mb-8">
+            <SectionHeader
+              icon={
+                <Receipt className="w-6 h-6 text-[#2E7BBE]" />
+              }
+              title="Receipts"
+              subtitle="Property-related expenses"
+            />
 
-              <StickyNote className="w-7 h-7 text-[#2E7BBE]" />
+            {receipts.length === 0 ? (
+              <EmptyState
+                icon={
+                  <Receipt className="w-6 h-6" />
+                }
+                title="No receipts available"
+                description="Property receipts will appear here."
+              />
+            ) : (
+              <div className="space-y-3">
 
-              <h2 className="text-2xl font-bold text-slate-800">
+                {receipts.slice(0, 5).map(
+                  (receipt) => (
 
-                Property Notes
+                    <div
+                      key={receipt.id}
+                      className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-5"
+                    >
 
-              </h2>
+                      <div>
+                        <p className="font-bold text-[#17324D]">
+                          {receipt.title ||
+                            "Cleaning Receipt"}
+                        </p>
 
-            </div>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {receipt.description ||
+                            "No description available."}
+                        </p>
+                      </div>
 
-            <div className="rounded-3xl bg-slate-50 border border-slate-200 p-8">
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-slate-400">
+                          Amount
+                        </p>
 
-              <p className="text-slate-600 leading-8 text-lg">
+                        <p className="text-xl font-bold text-[#2E7BBE] mt-1">
+                          $
+                          {Number(
+                            receipt.amount || 0
+                          ).toFixed(2)}
+                        </p>
+                      </div>
 
-                {property.notes || "No notes available for this property."}
+                    </div>
 
-              </p>
+                  )
+                )}
 
-            </div>
-
+              </div>
+            )}
           </div>
 
         </div>
-
       </section>
-            {/* ================= PROPERTY STATEMENT ================= */}
 
-      <section className="max-w-7xl mx-auto px-8 mt-12 mb-14">
+      {/* ===================================================== */}
+      {/* AIRBNB                                                */}
+      {/* ===================================================== */}
 
-        <div className="rounded-[36px] overflow-hidden bg-gradient-to-r from-[#1E4F85] to-[#2E7BBE] shadow-2xl text-white">
+      <section className="max-w-7xl mx-auto px-6 md:px-8 mt-10">
 
-          <div className="p-12 flex flex-col xl:flex-row justify-between gap-10">
+        <div className="mb-5">
+          <p className="text-xs uppercase tracking-[2px] font-bold text-[#FF5A5F]">
+            Airbnb
+          </p>
 
-            <div className="max-w-3xl">
+          <h2 className="text-2xl font-bold text-[#17324D] mt-1">
+            Airbnb & Calendar Connection
+          </h2>
+        </div>
 
-              <p className="uppercase tracking-[4px] text-blue-200 text-sm font-semibold">
+        <div className="grid lg:grid-cols-2 gap-6">
 
-                Financial Overview
+          {/* AIRBNB CONNECTION */}
 
-              </p>
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-7">
 
-              <h2 className="text-4xl font-bold mt-4">
+            <div className="flex items-start justify-between gap-5">
 
-                Property Statement
+              <SectionHeader
+                icon={
+                  <Building2 className="w-6 h-6 text-[#FF5A5F]" />
+                }
+                title="Airbnb Connection"
+                subtitle="Listing and calendar configuration"
+              />
 
-              </h2>
+              <span
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${
+                  property.airbnb_calendar_url
+                    ? "bg-green-50 text-green-700"
+                    : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {property.airbnb_calendar_url
+                  ? "Configured"
+                  : "Not Configured"}
+              </span>
 
-              <p className="text-blue-100 text-lg leading-8 mt-5">
+            </div>
 
-                View your complete financial statement including completed
-                cleanings, additional services, maintenance expenses and
-                monthly billing history.
+            <div className="space-y-4">
 
-              </p>
+              <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5">
+
+                <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
+                  Listing URL
+                </p>
+
+                <p className="text-sm font-medium text-[#17324D] mt-2 break-all">
+                  {property.airbnb_listing_url ||
+                    "No listing connected"}
+                </p>
+
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 border border-slate-100 p-5">
+
+                <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
+                  Calendar URL
+                </p>
+
+                <p className="text-sm font-medium text-[#17324D] mt-2 break-all">
+                  {property.airbnb_calendar_url ||
+                    "No calendar connected"}
+                </p>
+
+              </div>
+
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 border border-slate-100 p-5">
+
+                <div className="flex items-center gap-3">
+                  <Clock3 className="w-5 h-5 text-[#2E7BBE]" />
+
+                  <div>
+                    <p className="text-xs text-slate-400">
+                      Last Sync
+                    </p>
+
+                    <p className="font-semibold text-[#17324D] mt-1">
+                      {property.last_airbnb_sync
+                        ? new Date(
+                            property.last_airbnb_sync
+                          ).toLocaleString()
+                        : "Never"}
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3 mt-5">
 
               <button
                 onClick={() =>
-                  router.push(`/owner-statement/${property.id}`)
+                  setShowAirbnbModal(true)
                 }
-                className="mt-8 bg-white text-[#2E7BBE] rounded-2xl px-8 py-4 font-bold hover:scale-105 transition-all duration-300"
+                className="rounded-2xl bg-[#FF5A5F] hover:bg-[#E14D52] text-white py-3.5 font-semibold transition"
               >
+                Edit Connection
+              </button>
 
-                <div className="flex items-center gap-3">
-
-                  <FileText className="w-5 h-5" />
-
-                  View Full Statement
-
-                </div>
-
+              <button
+                disabled={
+                  !property.airbnb_listing_url
+                }
+                onClick={() =>
+                  window.open(
+                    property.airbnb_listing_url,
+                    "_blank"
+                  )
+                }
+                className="rounded-2xl border-2 border-[#FF5A5F] text-[#FF5A5F] hover:bg-[#FF5A5F] hover:text-white py-3.5 font-semibold transition disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#FF5A5F]"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <ExternalLink className="w-4 h-4" />
+                  Open Listing
+                </span>
               </button>
 
             </div>
+          </div>
 
-            <div className="bg-white text-slate-800 rounded-[30px] p-8 min-w-[340px] shadow-xl">
+          {/* CALENDAR */}
+
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-7">
+
+            <SectionHeader
+              icon={
+                <CalendarDays className="w-6 h-6 text-[#2E7BBE]" />
+              }
+              title="Calendar Sync"
+              subtitle="Reservation synchronization"
+            />
+
+            <div
+              className={`rounded-2xl border p-6 ${
+                property.airbnb_calendar_url
+                  ? "bg-green-50 border-green-100"
+                  : "bg-orange-50 border-orange-100"
+              }`}
+            >
 
               <div className="flex items-center gap-3">
 
-                <Building2 className="w-7 h-7 text-[#FF5A5F]" />
+                {property.airbnb_calendar_url ? (
+                  <CheckCircle2 className="w-6 h-6 text-green-600" />
+                ) : (
+                  <Clock3 className="w-6 h-6 text-orange-500" />
+                )}
 
-                <h3 className="text-2xl font-bold">
+                <div>
 
-                  Airbnb Sync
+                  <p className="text-sm text-slate-500">
+                    Synchronization Status
+                  </p>
 
-                </h3>
-
-              </div>
-
-              <div className="space-y-6 mt-8">
-
-                <div className="flex justify-between">
-
-                  <span className="text-slate-500">
-
-                    Status
-
-                  </span>
-
-                  <span className="text-orange-500 font-bold">
-
-                    Awaiting Connection
-
-                  </span>
-
-                </div>
-
-                <div className="flex justify-between">
-
-                  <span className="text-slate-500">
-
-                    Last Sync
-
-                  </span>
-
-                  <span className="font-semibold">
-
-                    —
-
-                  </span>
-
-                </div>
-
-                <div className="flex justify-between">
-
-                  <span className="text-slate-500">
-
-                    Upcoming Reservation
-
-                  </span>
-
-                  <span className="font-semibold">
-
-                    —
-
-                  </span>
-
-                </div>
-
-                <div className="flex justify-between">
-
-                  <span className="text-slate-500">
-
-                    Calendar
-
-                  </span>
-
-                  <span className="font-semibold">
-
-                    Not Connected
-
-                  </span>
+                  <p
+                    className={`font-bold text-lg mt-1 ${
+                      property.airbnb_calendar_url
+                        ? "text-green-700"
+                        : "text-orange-600"
+                    }`}
+                  >
+                    {property.airbnb_calendar_url
+                      ? "Connected"
+                      : "Pending Airbnb Connection"}
+                  </p>
 
                 </div>
 
               </div>
 
-              <button
-                disabled
-                className="mt-8 w-full rounded-2xl bg-slate-200 text-slate-500 py-4 font-semibold cursor-not-allowed"
-              >
+            </div>
 
-                Sync Airbnb (Coming Soon)
+            <p className="text-slate-500 text-sm leading-6 mt-5">
+              Once Airbnb is connected, reservations
+              and future cleanings can appear here
+              automatically.
+            </p>
 
-              </button>
+            <div className="mt-6 rounded-2xl bg-slate-50 border border-slate-100 p-5">
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500">
+                  Calendar
+                </span>
+
+                <span className="font-semibold text-[#17324D]">
+                  {property.airbnb_calendar_url
+                    ? "Connected"
+                    : "Not Connected"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between mt-4">
+                <span className="text-sm text-slate-500">
+                  Upcoming Reservation
+                </span>
+
+                <span className="font-semibold text-[#17324D]">
+                  —
+                </span>
+              </div>
 
             </div>
 
           </div>
 
         </div>
-
       </section>
 
-      {/* ================= FOOTER ================= */}
+      {/* ===================================================== */}
+      {/* PROPERTY NOTES                                       */}
+      {/* ===================================================== */}
+
+      <section className="max-w-7xl mx-auto px-6 md:px-8 mt-10">
+
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-7">
+
+          <SectionHeader
+            icon={
+              <StickyNote className="w-6 h-6 text-[#2E7BBE]" />
+            }
+            title="Property Notes"
+            subtitle="Important instructions and information"
+          />
+
+          <div className="rounded-2xl bg-[#F7FAFD] border border-slate-100 p-6">
+
+            <p className="text-slate-600 leading-7 whitespace-pre-line">
+              {property.notes ||
+                "No notes available for this property."}
+            </p>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ===================================================== */}
+      {/* FINANCIAL OVERVIEW                                   */}
+      {/* ===================================================== */}
+
+      <section className="max-w-7xl mx-auto px-6 md:px-8 mt-10 mb-12">
+
+        <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#173F70] via-[#246BA5] to-[#3B8FD1] shadow-xl text-white">
+
+          <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-white/10" />
+
+          <div className="relative p-7 md:p-9 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+
+            <div className="max-w-2xl">
+
+              <div className="flex items-center gap-2 text-blue-200 text-xs font-bold uppercase tracking-[2px]">
+                <DollarSign className="w-4 h-4" />
+                Financial Overview
+              </div>
+
+              <h2 className="text-3xl font-bold mt-3">
+                Property Statement
+              </h2>
+
+              <p className="text-blue-100 leading-7 mt-3">
+                View completed cleanings, additional
+                services, maintenance expenses and your
+                property billing history.
+              </p>
+
+            </div>
+
+            <button
+              onClick={() =>
+                router.push(
+                  `/owner-statement/${property.id}`
+                )
+              }
+              className="inline-flex items-center justify-center gap-3 bg-white text-[#2E7BBE] rounded-2xl px-7 py-4 font-bold hover:shadow-lg hover:-translate-y-0.5 transition-all shrink-0"
+            >
+              <FileText className="w-5 h-5" />
+              View Full Statement
+              <ArrowRight className="w-5 h-5" />
+            </button>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ===================================================== */}
+      {/* FOOTER                                                */}
+      {/* ===================================================== */}
 
       <footer className="pb-10 text-center">
 
-        <p className="text-slate-500">
-
-          Powered by <span className="font-semibold">PureSpace Cleaning</span>
-
+        <p className="text-sm text-slate-500">
+          Powered by{" "}
+          <span className="font-semibold text-[#2E7BBE]">
+            PureSpace Cleaning
+          </span>
         </p>
 
-        <p className="text-slate-400 mt-2">
-
+        <p className="text-xs text-slate-400 mt-1">
           Professional Property Management Platform
-
         </p>
 
       </footer>
-      {/* ================= AIRBNB MODAL ================= */}
+
+      {/* ===================================================== */}
+      {/* AIRBNB MODAL                                         */}
+      {/* ===================================================== */}
 
       {showAirbnbModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-5">
 
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-2xl overflow-hidden">
 
-          <div className="bg-white rounded-[34px] shadow-2xl w-full max-w-2xl p-8">
+            <div className="px-7 py-6 border-b border-slate-100 flex items-center justify-between">
 
-            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-3">
 
-              <h2 className="text-3xl font-bold text-slate-800">
+                  <div className="w-11 h-11 rounded-2xl bg-red-50 flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-[#FF5A5F]" />
+                  </div>
 
-                Connect Airbnb
+                  <div>
+                    <h2 className="text-2xl font-bold text-[#17324D]">
+                      Connect Airbnb
+                    </h2>
 
-              </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Connect your listing and calendar
+                    </p>
+                  </div>
+
+                </div>
+              </div>
 
               <button
-                onClick={() => setShowAirbnbModal(false)}
-                className="text-slate-400 hover:text-slate-700 text-3xl"
+                onClick={() =>
+                  setShowAirbnbModal(false)
+                }
+                className="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition"
               >
-
-                ×
-
+                <X className="w-5 h-5" />
               </button>
 
             </div>
 
-            <p className="text-slate-500 mt-3 leading-7">
+            <div className="p-7">
 
-              Connect your Airbnb listing to automatically synchronize reservations and generate cleanings.
+              <div className="rounded-2xl bg-blue-50 border border-blue-100 p-5 mb-6">
 
-            </p>
-
-            <div className="mt-8 space-y-6">
-
-              <div>
-
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-
-                  Airbnb Listing URL
-
-                </label>
-
-                <input
-                  type="text"
-                  value={listingUrl}
-                  onChange={(e) =>
-                    setListingUrl(e.target.value)
-                  }
-                  placeholder="https://www.airbnb.com/rooms/..."
-                  className="w-full rounded-2xl border border-slate-300 px-5 py-4 outline-none focus:border-[#FF5A5F]"
-                />
+                <p className="text-sm text-[#2E7BBE] leading-6">
+                  Add your Airbnb listing URL and
+                  Airbnb calendar (.ics) URL to connect
+                  this property.
+                </p>
 
               </div>
 
-              <div>
+              <div className="space-y-5">
 
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <div>
+                  <label className="block text-sm font-semibold text-[#17324D] mb-2">
+                    Airbnb Listing URL
+                  </label>
 
-                  Airbnb Calendar (.ics)
+                  <input
+                    type="text"
+                    value={listingUrl}
+                    onChange={(e) =>
+                      setListingUrl(e.target.value)
+                    }
+                    placeholder="https://www.airbnb.com/rooms/..."
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 outline-none focus:bg-white focus:border-[#FF5A5F] focus:ring-4 focus:ring-red-50 transition"
+                  />
+                </div>
 
-                </label>
+                <div>
+                  <label className="block text-sm font-semibold text-[#17324D] mb-2">
+                    Airbnb Calendar (.ics)
+                  </label>
 
-                <input
-                  type="text"
-                  value={calendarUrl}
-                  onChange={(e) =>
-                    setCalendarUrl(e.target.value)
+                  <input
+                    type="text"
+                    value={calendarUrl}
+                    onChange={(e) =>
+                      setCalendarUrl(e.target.value)
+                    }
+                    placeholder="https://www.airbnb.com/calendar/ical/..."
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 outline-none focus:bg-white focus:border-[#FF5A5F] focus:ring-4 focus:ring-red-50 transition"
+                  />
+                </div>
+
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-8">
+
+                <button
+                  onClick={() =>
+                    setShowAirbnbModal(false)
                   }
-                  placeholder="https://www.airbnb.com/calendar/ical/..."
-                  className="w-full rounded-2xl border border-slate-300 px-5 py-4 outline-none focus:border-[#FF5A5F]"
-                />
+                  className="px-6 py-3.5 rounded-2xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={saveAirbnbConnection}
+                  disabled={savingAirbnb}
+                  className="px-7 py-3.5 rounded-2xl bg-[#FF5A5F] text-white font-semibold hover:bg-[#E14D52] transition disabled:opacity-50"
+                >
+                  {savingAirbnb
+                    ? "Saving..."
+                    : "Save Connection"}
+                </button>
 
               </div>
 
             </div>
-
-            <div className="flex justify-end gap-4 mt-10">
-
-              <button
-                onClick={() => setShowAirbnbModal(false)}
-                className="px-7 py-4 rounded-2xl border border-slate-300 font-semibold"
-              >
-
-                Cancel
-
-              </button>
-<button
-  onClick={saveAirbnbConnection}
-  disabled={savingAirbnb}
-  className="px-8 py-4 rounded-2xl bg-[#FF5A5F] text-white font-semibold hover:bg-[#E14D52] disabled:opacity-50"
->
-
-  {savingAirbnb
-    ? "Saving..."
-    : "Save Connection"}
-
-</button>
-
-            </div>
-
           </div>
-
         </div>
-
       )}
+
     </main>
-
   );
-
 }
