@@ -36,20 +36,36 @@ import { getEmployees } from "@/lib/employees";
 import { getReceiptsByProperty } from "@/lib/receipts";
 import { getMaintenanceByProperty } from "@/lib/maintenance";
 
+
 function formatScheduleDate(value: unknown) {
   if (!value) return "Date unavailable";
 
-  const date = new Date(String(value));
+  const raw = String(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
+  // cleaning_date is a calendar date, not a timestamp.
+  // Keep it in the property's scheduled day and avoid timezone shifts.
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (!match) {
+    return raw;
   }
 
-  return date.toLocaleDateString("en-CA", {
+  const [, year, month, day] = match;
+
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  });
+    timeZone: "UTC",
+  }).format(
+    new Date(
+      Date.UTC(
+        Number(year),
+        Number(month) - 1,
+        Number(day)
+      )
+    )
+  );
 }
 
 function formatShortDate(value: unknown) {
