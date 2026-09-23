@@ -75,30 +75,35 @@ export default function OwnerHomePage() {
         const schedules = await getSchedules();
 
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
 
-        const ownerPropertyIds = propertyData.map((property: any) =>
-          Number(property.id)
-        );
+const todayKey =
+  today.getFullYear() +
+  "-" +
+  String(today.getMonth() + 1).padStart(2, "0") +
+  "-" +
+  String(today.getDate()).padStart(2, "0");
 
-        const upcoming = schedules
-          .filter((schedule: any) => {
-            const cleaningDate = new Date(schedule.cleaning_date);
-            cleaningDate.setHours(0, 0, 0, 0);
+const ownerPropertyIds = propertyData.map((property: any) =>
+  Number(property.id)
+);
 
-            return (
-              cleaningDate >= today &&
-              ownerPropertyIds.includes(Number(schedule.property_id)) &&
-              schedule.status !== "Completed"
-            );
-          })
-          .sort(
-            (a: any, b: any) =>
-              new Date(a.cleaning_date).getTime() -
-              new Date(b.cleaning_date).getTime()
-          );
+const upcoming = schedules
+  .filter((schedule: any) => {
+    const cleaningDate = String(schedule.cleaning_date).slice(0, 10);
 
-        setUpcomingCleanings(upcoming);
+    return (
+      cleaningDate >= todayKey &&
+      ownerPropertyIds.includes(Number(schedule.property_id)) &&
+      schedule.status !== "Completed"
+    );
+  })
+  .sort((a: any, b: any) =>
+    String(a.cleaning_date).localeCompare(
+      String(b.cleaning_date)
+    )
+  );
+
+setUpcomingCleanings(upcoming);
       } catch (error) {
         console.error("Error loading owner dashboard:", error);
       }
@@ -121,20 +126,34 @@ export default function OwnerHomePage() {
       (schedule: any) => Number(schedule.property_id) === Number(propertyId)
     );
   }
+function formatCleaningDate(date: string) {
+  const raw = String(date).slice(0, 10);
 
-  function formatCleaningDate(date: string) {
-    const parsed = new Date(date);
+  const match = raw.match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  );
 
-    if (Number.isNaN(parsed.getTime())) {
-      return "Coming Soon";
-    }
-
-    return parsed.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+  if (!match) {
+    return "Coming Soon";
   }
+
+  const [, year, month, day] = match;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(
+    new Date(
+      Date.UTC(
+        Number(year),
+        Number(month) - 1,
+        Number(day)
+      )
+    )
+  );
+}
 
   return (
     <main className="min-h-screen bg-[#F4F7FB] text-slate-800">
