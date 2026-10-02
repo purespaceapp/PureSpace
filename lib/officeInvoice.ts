@@ -7,13 +7,19 @@ async function getLogo() {
   return await new Promise<string>((resolve) => {
     const reader = new FileReader();
 
-    reader.onloadend = () => {
-      resolve(reader.result as string);
-    };
-
+    reader.onloadend = () => resolve(reader.result as string);
     reader.readAsDataURL(blob);
   });
 }
+
+type OfficeInvoiceItem = {
+  item_type?: string | null;
+  item_date?: string | null;
+  description?: string | null;
+  quantity?: number | null;
+  unit_price?: number | null;
+  amount?: number | null;
+};
 
 type OfficeInvoiceProperty = {
   property_name: string;
@@ -23,6 +29,7 @@ type OfficeInvoiceProperty = {
   total_expenses: number;
   total_due: number;
   hst_enabled?: boolean;
+  items?: OfficeInvoiceItem[];
 };
 
 type OfficeInvoiceData = {
@@ -32,431 +39,574 @@ type OfficeInvoiceData = {
   invoices: OfficeInvoiceProperty[];
 };
 
-export async function downloadOfficeInvoice(
-  data: OfficeInvoiceData
-) {
-  const logo = await getLogo();
+const formatMoney = (amount: unknown) => {
+  const value = Number(amount ?? 0);
+  return Number.isFinite(value) ? `$${value.toFixed(2)}` : "$0.00";
+};
 
+const formatDate = (date: string) => {
+  if (!date) return "";
+
+  const parsed = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+
+  return parsed.toLocaleDateString("en-CA", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const formatShortDate = (date?: string | null) => {
+  if (!date) return "";
+
+  const parsed = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+
+  return parsed.toLocaleDateString("en-CA", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const cleanText = (value: unknown) => String(value ?? "").trim();
+
+export async function downloadOfficeInvoice(invoice: OfficeInvoiceData) {
+  const logo = await getLogo();
   const doc = new jsPDF("p", "mm", "a4");
 
-  const formatMoney = (amount: number) =>
-    `$${Number(amount || 0).toFixed(2)}`;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 16;
+  const contentWidth = pageWidth - margin * 2;
 
-  const formatDate = (date: string) =>
-    new Date(`${date}T00:00:00`).toLocaleDateString(
-      "en-US",
-      {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }
-    );
+  const navy = [31, 48, 71] as const;
+  const lightBlue = [239, 244, 248] as const;
+  const softGray = [246, 247, 249] as const;
+  const border = [220, 225, 230] as const;
+  const darkText = [38, 43, 48] as const;
+  const grayText = [105, 112, 120] as const;
+  const white = [255, 255, 255] as const;
+  const green = [48, 122, 82] as const;
 
-  // =========================================================
-  // IMPORTANT:
-  // Each invoice already contains its final total_due.
-  //
-  // HST is controlled INDIVIDUALLY per invoice in the
-  // Office Dashboard.
-  //
-  // This PDF must NEVER apply 13% again.
-  // =========================================================
+  const setFont = (
+    size: number,
+    color: readonly [number, number, number] = darkText,
+    style: "normal" | "bold" = "normal"
+  ) => {
+    doc.setFont("helvetica", style);
+    doc.setFontSize(size);
+    doc.setTextColor(...color);
+  };
 
-  const totalCleaning = data.invoices.reduce(
-    (sum, invoice) =>
-      sum + Number(invoice.total_cleaning || 0),
-    0
-  );
+  const drawRoundedBox = (
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    fill: readonly [number, number, number],
+    radius = 3
+  ) => {
+    doc.setFillColor(...fill);
+    doc.roundedRect(x, y, width, height, radius, radius, "F");
+  };
 
-  const totalExpenses = data.invoices.reduce(
-    (sum, invoice) =>
-      sum + Number(invoice.total_expenses || 0),
-    0
-  );
+  const drawBorderedBox = (
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    fill: readonly [number, number, number] = white
+  ) => {
+    doc.setFillColor(...fill);
+    doc.setDrawColor(...border);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, width, height, 3, 3, "FD");
+  };
 
-  // This is the authoritative final amount from the invoices.
-  const grandTotal = data.invoices.reduce(
-    (sum, invoice) =>
-      sum + Number(invoice.total_due || 0),
-    0
-  );
+  const drawPageTop = () => {
+    doc.setFillColor(...navy);
+    doc.rect(0, 0, pageWidth, 3, "F");
+  };
 
-  const subtotal = totalCleaning + totalExpenses;
+  const drawFooter = () => {
+    doc.setDrawColor(...border);
+    doc.setLineWidth(0.3);
+    doc.line(margin, pageHeight - 16, pageWidth - margin, pageHeight - 16);
 
-  // HST already included in the individual invoice totals.
-  // Therefore we derive the applied HST instead of multiplying
-  // the consolidated total by 13%.
-  const hstAmount = Math.max(
-    0,
-    grandTotal - subtotal
-  );
+    setFont(8, grayText);
+    doc.text("PureSpace Cleaning", margin, pageHeight - 10);
 
-  // =========================================================
-  // BACKGROUND
-  // =========================================================
-
-  doc.setFillColor(250, 251, 253);
-  doc.rect(0, 0, 210, 297, "F");
-
-  // =========================================================
-  // HEADER
-  // =========================================================
-
-  doc.setFillColor(46, 123, 190);
-  doc.rect(0, 0, 210, 40, "F");
-
-  doc.addImage(
-    logo,
-    "JPEG",
-    160,
-    6,
-    34,
-    28
-  );
-
-  doc.setTextColor(255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-
-  doc.text(
-    "PURESPACE CLEANING",
-    20,
-    18
-  );
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(12);
-
-  doc.text(
-    "Consolidated Invoice",
-    20,
-    28
-  );
-
-  // =========================================================
-  // OWNER / PERIOD
-  // =========================================================
-
-  doc.setTextColor(40);
-  doc.setDrawColor(220);
-
-  doc.line(
-    20,
-    48,
-    190,
-    48
-  );
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-
-  doc.text(
-    "OWNER",
-    20,
-    60
-  );
-
-  doc.text(
-    "BILLING PERIOD",
-    120,
-    60
-  );
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-
-  doc.text(
-    data.ownerName,
-    20,
-    68
-  );
-
-  doc.text(
-    `${formatDate(data.periodStart)} – ${formatDate(data.periodEnd)}`,
-    120,
-    68
-  );
-
-  doc.line(
-    20,
-    78,
-    190,
-    78
-  );
-
-  // =========================================================
-  // TABLE HEADER
-  // =========================================================
-
-  doc.setFillColor(235, 244, 255);
-
-  doc.roundedRect(
-    20,
-    86,
-    170,
-    12,
-    2,
-    2,
-    "F"
-  );
-
-  doc.setTextColor(40);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-
-  doc.text(
-    "PROPERTY",
-    25,
-    94
-  );
-
-  doc.text(
-    "CLEANING",
-    105,
-    94
-  );
-
-  doc.text(
-    "EXPENSES",
-    140,
-    94
-  );
-
-  doc.text(
-    "TOTAL",
-    174,
-    94
-  );
-
-  let y = 109;
-
-  // =========================================================
-  // PROPERTY ROWS
-  // =========================================================
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-
-  data.invoices.forEach((invoice) => {
-    const propertyName =
-      invoice.property_name || "Property";
-
-    doc.setTextColor(40);
-
-    const propertyLines = doc.splitTextToSize(
-      propertyName,
-      72
+    doc.text(
+      "cleaningpurespace26@gmail.com",
+      pageWidth / 2,
+      pageHeight - 10,
+      { align: "center" }
     );
 
     doc.text(
-      propertyLines,
-      25,
-      y
+      "Thank you for choosing PureSpace Cleaning",
+      pageWidth - margin,
+      pageHeight - 10,
+      { align: "right" }
+    );
+  };
+
+  const ensureSpace = (requiredHeight: number, currentY: number) => {
+    if (currentY + requiredHeight > pageHeight - 24) {
+      drawFooter();
+      doc.addPage();
+      drawPageTop();
+      return 25;
+    }
+
+    return currentY;
+  };
+
+  const invoices = Array.isArray(invoice.invoices)
+    ? invoice.invoices
+    : [];
+
+  const totalCleaning = invoices.reduce(
+    (sum, property) => sum + Number(property.total_cleaning || 0),
+    0
+  );
+
+  const totalExpenses = invoices.reduce(
+    (sum, property) => sum + Number(property.total_expenses || 0),
+    0
+  );
+
+  /*
+   * IMPORTANT:
+   * Use the finalized property invoice totals.
+   * Extras are displayed as invoice detail when available,
+   * but are never added again here.
+   */
+  const grandTotal = invoices.reduce(
+    (sum, property) => sum + Number(property.total_due || 0),
+    0
+  );
+
+  const hstAmount = invoices.reduce((sum, property) => {
+    if (!property.hst_enabled) {
+      return sum;
+    }
+
+    const propertySubtotal =
+      Number(property.total_cleaning || 0) +
+      Number(property.total_expenses || 0);
+
+    const propertyTotal = Number(property.total_due || 0);
+
+    return sum + Math.max(0, propertyTotal - propertySubtotal);
+  }, 0);
+
+  drawPageTop();
+
+  let y = 14;
+
+  try {
+    doc.addImage(logo, "JPEG", margin, y, 30, 18);
+  } catch {
+    // Continue without logo if it cannot be loaded.
+  }
+
+  setFont(15, navy, "bold");
+  doc.text("PURESPACE CLEANING", margin + 36, y + 8);
+
+  setFont(8.5, grayText);
+  doc.text(
+    "Professional Cleaning Services",
+    margin + 36,
+    y + 14
+  );
+
+  setFont(19, navy, "bold");
+  doc.text(
+    "CONSOLIDATED INVOICE",
+    pageWidth - margin,
+    y + 7,
+    { align: "right" }
+  );
+
+  setFont(8.5, grayText);
+  doc.text(
+    `${invoices.length} ${invoices.length === 1 ? "property" : "properties"}`,
+    pageWidth - margin,
+    y + 14,
+    { align: "right" }
+  );
+
+  y = 42;
+
+  drawBorderedBox(margin, y, contentWidth, 34, white);
+
+  setFont(7.5, grayText, "bold");
+  doc.text("BILL TO", margin + 7, y + 8);
+
+  setFont(13, darkText, "bold");
+  doc.text(
+    cleanText(invoice.ownerName) || "Client",
+    margin + 7,
+    y + 16
+  );
+
+  const rightX = pageWidth - margin - 7;
+
+  setFont(7.5, grayText, "bold");
+  doc.text("BILLING PERIOD", rightX, y + 8, { align: "right" });
+
+  setFont(10.5, darkText, "bold");
+  doc.text(
+    `${formatDate(invoice.periodStart)} – ${formatDate(invoice.periodEnd)}`,
+    rightX,
+    y + 16,
+    { align: "right" }
+  );
+
+  setFont(8, grayText);
+  doc.text(
+    "Consolidated statement for all properties",
+    rightX,
+    y + 24,
+    { align: "right" }
+  );
+
+  y += 44;
+
+  invoices.forEach((property, propertyIndex) => {
+    const propertyItems = Array.isArray(property.items)
+      ? property.items
+      : [];
+
+    const estimatedHeight =
+      54 + Math.min(propertyItems.length, 6) * 7 + 28;
+
+    y = ensureSpace(estimatedHeight, y);
+
+    drawRoundedBox(margin, y, contentWidth, 13, navy, 3);
+
+    setFont(9.5, white, "bold");
+    doc.text(
+      cleanText(property.property_name) ||
+        `Property ${propertyIndex + 1}`,
+      margin + 7,
+      y + 8.5
     );
 
-    if (invoice.property_address) {
-      doc.setTextColor(110);
-      doc.setFontSize(7.5);
+    setFont(8, white);
+    doc.text(
+      `Invoice #${property.invoice_number}`,
+      pageWidth - margin - 7,
+      y + 8.5,
+      { align: "right" }
+    );
 
-      const addressLines = doc.splitTextToSize(
-        invoice.property_address,
-        72
+    y += 17;
+
+    setFont(8.5, grayText);
+    doc.text(
+      cleanText(property.property_address) || "Address not provided",
+      margin + 2,
+      y + 3
+    );
+
+    y += 10;
+
+    const tableX = margin;
+    const tableWidth = contentWidth;
+    const colDescription = tableX + 7;
+    const colAmount = tableX + tableWidth - 7;
+
+    doc.setFillColor(...softGray);
+    doc.roundedRect(
+      tableX,
+      y,
+      tableWidth,
+      9,
+      2,
+      2,
+      "F"
+    );
+
+    setFont(7.5, grayText, "bold");
+    doc.text("DESCRIPTION", colDescription, y + 6);
+    doc.text("AMOUNT", colAmount, y + 6, { align: "right" });
+
+    y += 9;
+
+    setFont(9, darkText);
+    doc.text("Cleaning Services", colDescription, y + 7);
+
+    setFont(9, darkText, "bold");
+    doc.text(
+      formatMoney(property.total_cleaning),
+      colAmount,
+      y + 7,
+      { align: "right" }
+    );
+
+    y += 12;
+
+    const extras = propertyItems.filter(
+      (item) => String(item.item_type).toLowerCase() === "extra"
+    );
+
+    const expenses = propertyItems.filter(
+      (item) => String(item.item_type).toLowerCase() === "expense"
+    );
+
+    if (extras.length > 0) {
+      extras.forEach((item) => {
+        y = ensureSpace(9, y);
+
+        const quantity = Number(item.quantity ?? 1);
+        const description =
+          cleanText(item.description) || "Extra Service";
+
+        const label =
+          quantity > 1
+            ? `${description} × ${quantity}`
+            : description;
+
+        setFont(8.5, grayText);
+        doc.text(
+          `Extra · ${label}`,
+          colDescription + 4,
+          y + 5
+        );
+
+        doc.text(
+          formatMoney(item.amount),
+          colAmount,
+          y + 5,
+          { align: "right" }
+        );
+
+        y += 9;
+      });
+    }
+
+    if (expenses.length > 0) {
+      expenses.forEach((item) => {
+        y = ensureSpace(9, y);
+
+        const description =
+          cleanText(item.description) || "Property Expense";
+
+        const date = formatShortDate(item.item_date);
+
+        const label = date
+          ? `Expense · ${description} · ${date}`
+          : `Expense · ${description}`;
+
+        setFont(8.5, grayText);
+        doc.text(
+          label,
+          colDescription + 4,
+          y + 5
+        );
+
+        doc.text(
+          formatMoney(item.amount),
+          colAmount,
+          y + 5,
+          { align: "right" }
+        );
+
+        y += 9;
+      });
+    }
+
+    if (
+      expenses.length === 0 &&
+      Number(property.total_expenses || 0) > 0
+    ) {
+      setFont(8.5, grayText);
+
+      doc.text(
+        "Property Expenses",
+        colDescription,
+        y + 7
       );
 
       doc.text(
-        addressLines,
-        25,
-        y + propertyLines.length * 4
+        formatMoney(property.total_expenses),
+        colAmount,
+        y + 7,
+        { align: "right" }
       );
+
+      y += 12;
     }
 
-    doc.setTextColor(40);
-    doc.setFontSize(9);
-
-    doc.text(
-      formatMoney(invoice.total_cleaning),
-      105,
-      y
-    );
-
-    doc.text(
-      formatMoney(invoice.total_expenses),
-      140,
-      y
-    );
-
-    // IMPORTANT:
-    // Use the invoice's final stored total.
-    // Do NOT calculate HST here.
-    doc.setFont("helvetica", "bold");
-
-    doc.text(
-      formatMoney(invoice.total_due),
-      174,
-      y
-    );
-
-    doc.setFont("helvetica", "normal");
-
-    const rowHeight = Math.max(
-      16,
-      propertyLines.length * 4 + 10
-    );
-
-    doc.setDrawColor(225);
-
+    doc.setDrawColor(...border);
+    doc.setLineWidth(0.3);
     doc.line(
-      20,
-      y + rowHeight - 5,
-      190,
-      y + rowHeight - 5
+      tableX,
+      y + 1,
+      tableX + tableWidth,
+      y + 1
     );
 
-    y += rowHeight;
+    y += 7;
+
+    drawRoundedBox(
+      tableX,
+      y,
+      tableWidth,
+      15,
+      lightBlue,
+      3
+    );
+
+    setFont(8, grayText, "bold");
+    doc.text("PROPERTY TOTAL", colDescription, y + 9);
+
+    setFont(12, navy, "bold");
+    doc.text(
+      formatMoney(property.total_due),
+      colAmount,
+      y + 9,
+      { align: "right" }
+    );
+
+    y += 23;
+
+    if (property.hst_enabled) {
+      setFont(7.5, green, "bold");
+      doc.text(
+        "HST applied to this property invoice",
+        colDescription,
+        y
+      );
+      y += 7;
+    }
+
+    y += 7;
   });
 
-  // =========================================================
-  // SUMMARY
-  // =========================================================
+  y = ensureSpace(82, y);
 
-  y += 8;
+  setFont(11, navy, "bold");
+  doc.text("CONSOLIDATED SUMMARY", margin, y);
 
-  doc.setFillColor(46, 123, 190);
+  y += 7;
 
-  doc.roundedRect(
-    20,
-    y,
-    170,
-    54,
-    3,
-    3,
-    "F"
-  );
+  drawBorderedBox(margin, y, contentWidth, 57, white);
 
-  doc.setTextColor(255);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
+  let summaryY = y + 11;
 
-  doc.text(
-    "Cleaning",
-    30,
-    y + 11
-  );
+  setFont(9, grayText);
+  doc.text("Cleaning Services", margin + 8, summaryY);
 
-  doc.text(
-    "Expenses",
-    30,
-    y + 20
-  );
-
-  doc.text(
-    "Subtotal",
-    30,
-    y + 29
-  );
-
-  doc.text(
-    "HST (13%)",
-    30,
-    y + 38
-  );
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-
-  doc.text(
-    "TOTAL DUE",
-    30,
-    y + 48
-  );
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-
+  setFont(9, darkText, "bold");
   doc.text(
     formatMoney(totalCleaning),
-    155,
-    y + 11,
+    pageWidth - margin - 8,
+    summaryY,
     { align: "right" }
   );
 
+  summaryY += 11;
+
+  setFont(9, grayText);
+  doc.text("Property Expenses", margin + 8, summaryY);
+
+  setFont(9, darkText, "bold");
   doc.text(
     formatMoney(totalExpenses),
-    155,
-    y + 20,
+    pageWidth - margin - 8,
+    summaryY,
     { align: "right" }
   );
 
-  doc.text(
-    formatMoney(subtotal),
-    155,
-    y + 29,
-    { align: "right" }
+  summaryY += 11;
+
+  if (hstAmount > 0) {
+    setFont(9, grayText);
+    doc.text("HST", margin + 8, summaryY);
+
+    setFont(9, darkText, "bold");
+    doc.text(
+      formatMoney(hstAmount),
+      pageWidth - margin - 8,
+      summaryY,
+      { align: "right" }
+    );
+
+    summaryY += 11;
+  }
+
+  doc.setDrawColor(...border);
+  doc.setLineWidth(0.4);
+  doc.line(
+    margin + 8,
+    summaryY - 4,
+    pageWidth - margin - 8,
+    summaryY - 4
   );
 
-  doc.text(
-    formatMoney(hstAmount),
-    155,
-    y + 38,
-    { align: "right" }
-  );
+  setFont(8.5, grayText, "bold");
+  doc.text("TOTAL DUE", margin + 8, summaryY + 7);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-
+  setFont(17, navy, "bold");
   doc.text(
     formatMoney(grandTotal),
-    180,
-    y + 48,
+    pageWidth - margin - 8,
+    summaryY + 8,
     { align: "right" }
   );
 
-  // =========================================================
-  // FOOTER
-  // =========================================================
+  y += 65;
 
-  doc.setDrawColor(220);
+  y = ensureSpace(28, y);
 
-  doc.line(
-    20,
-    282,
-    190,
-    282
+  drawRoundedBox(
+    margin,
+    y,
+    contentWidth,
+    23,
+    softGray,
+    3
   );
 
-  doc.setFontSize(9);
-  doc.setTextColor(120);
-  doc.setFont("helvetica", "normal");
-
+  setFont(8, navy, "bold");
   doc.text(
-    "PURESPACE CLEANING",
-    20,
-    288
+    "INVOICE INFORMATION",
+    margin + 7,
+    y + 8
   );
 
-  doc.text(
-    "Toronto, Ontario",
-    20,
-    293
+  setFont(7.5, grayText);
+
+  const note =
+    "This consolidated invoice combines the finalized property invoices for the billing period shown above.";
+
+  const noteLines = doc.splitTextToSize(
+    note,
+    contentWidth - 14
   );
 
-  doc.text(
-    "financepurespacecleaning@gmail.com",
-    100,
-    288
-  );
+  doc.text(noteLines, margin + 7, y + 15);
 
-  doc.text(
-    "Thank you for choosing PureSpace Cleaning.",
-    100,
-    293
-  );
+  drawFooter();
 
-  // =========================================================
-  // DOWNLOAD
-  // =========================================================
+  const safeOwnerName =
+    cleanText(invoice.ownerName)
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "") || "Owner";
 
-  doc.save(
-    `Invoice-${data.ownerName}-${data.periodStart}-${data.periodEnd}.pdf`
-  );
+  const fileName =
+    `PureSpace-Consolidated-Invoice-${safeOwnerName}-${invoice.periodStart}-${invoice.periodEnd}.pdf`;
+
+  doc.save(fileName);
 }
