@@ -150,12 +150,14 @@ export async function createInvoice(
 // ==========================================
 
 export async function getCurrentOwnerStatement(
-  propertyId: number
+  propertyId: number,
+  ownerId: number
 ) {
   return await invoiceRequest(
     "current-property-statement",
     {
       propertyId,
+      ownerId,
     }
   );
 }

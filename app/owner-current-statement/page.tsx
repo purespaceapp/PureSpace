@@ -85,11 +85,11 @@ function CurrentOwnerStatementContent() {
           setError("Property was not specified.");
           return;
         }
-
-        const data =
-          await getCurrentOwnerStatement(
-            Number(propertyId)
-          );
+const data =
+  await getCurrentOwnerStatement(
+    Number(propertyId),
+    Number(ownerId)
+  );
 
         setStatement(data);
       } catch (err) {

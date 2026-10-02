@@ -261,11 +261,11 @@ if (action === "set-current-period-hst") {
     // ==========================================
     // CURRENT OWNER STATEMENT BY PROPERTY
     // ==========================================
+if (action === "current-property-statement") {
+  const propertyId = Number(body.propertyId);
+  const ownerId = Number(body.ownerId);
 
-    if (action === "current-property-statement") {
-      const propertyId = Number(body.propertyId);
-
-      if (!propertyId) {
+  if (!propertyId || !ownerId) {
         return NextResponse.json(
           {
             success: false,
@@ -288,9 +288,9 @@ if (action === "set-current-period-hst") {
             address,
             owner_id
           `)
-          .eq("id", propertyId)
-          .maybeSingle();
-
+             .eq("id", propertyId)
+    .eq("owner_id", ownerId)
+    .maybeSingle();
       if (propertyError) throw propertyError;
 
       if (!property) {
@@ -555,10 +555,11 @@ const totalDue = subtotal + hstAmount;
     // GET SINGLE HISTORICAL INVOICE
     // ==========================================
 
-    if (action === "get") {
-      const invoiceId = Number(body.invoiceId);
+  if (action === "get") {
+  const invoiceId = Number(body.invoiceId);
+  const ownerId = Number(body.ownerId);
 
-      if (!invoiceId) {
+  if (!invoiceId || !ownerId) {
         return NextResponse.json(
           {
             success: false,
@@ -585,7 +586,8 @@ const totalDue = subtotal + hstAmount;
               phone
             )
           `)
-          .eq("id", invoiceId)
+         .eq("id", invoiceId)
+.eq("owner_id", ownerId)
           .maybeSingle();
 
       if (invoiceError) throw invoiceError;

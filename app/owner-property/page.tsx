@@ -1262,7 +1262,7 @@ const selected = properties.find(
             <button
               onClick={() =>
                 router.push(
-                  `/owner-statement/${property.id}`
+                  `/owner-current-statement?propertyId=${property.id}`
                 )
               }
               className="inline-flex items-center justify-center gap-3 bg-white text-[#2E7BBE] rounded-2xl px-7 py-4 font-bold hover:shadow-lg hover:-translate-y-0.5 transition-all shrink-0"

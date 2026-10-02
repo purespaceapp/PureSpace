@@ -56,6 +56,9 @@ export default function SchedulePage() {
   const [generatingWhatsApp, setGeneratingWhatsApp] =
     useState(false);
 
+  const [expandedCompleted, setExpandedCompleted] =
+    useState<Record<number, boolean>>({});
+
   async function loadSchedules() {
     try {
       const data = await getSchedules();
@@ -501,6 +504,17 @@ const grouped = employees
                     return null;
                   }
 
+                  const upcomingSchedules = schedules.filter(
+                    (schedule) => schedule.status !== "Completed"
+                  );
+
+                  const completedSchedules = schedules.filter(
+                    (schedule) => schedule.status === "Completed"
+                  );
+
+                  const isCompletedExpanded =
+                    expandedCompleted[employee.id] ?? false;
+
                   return (
                     <div
                       key={employee.id}
@@ -524,10 +538,16 @@ const grouped = employees
                             </h2>
 
                             <p className="mt-0.5 text-sm text-slate-500">
-                              {schedules.length}{" "}
-                              {schedules.length === 1
-                                ? "assigned job"
-                                : "assigned jobs"}
+                              {upcomingSchedules.length}{" "}
+                              {upcomingSchedules.length === 1
+                                ? "upcoming job"
+                                : "upcoming jobs"}
+                              {completedSchedules.length > 0 && (
+                                <>
+                                  {" · "}
+                                  {completedSchedules.length} completed
+                                </>
+                              )}
                             </p>
 
                           </div>
@@ -541,173 +561,247 @@ const grouped = employees
                           </span>
 
                           <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm">
-                            {schedules.length} jobs
+                            {upcomingSchedules.length} open
                           </span>
 
                         </div>
 
                       </div>
 
-                      {/* SCHEDULE CARDS */}
+                      {/* UPCOMING CLEANINGS */}
 
-                      <div className="grid gap-5 p-5 md:grid-cols-2 lg:grid-cols-3">
+                      {upcomingSchedules.length > 0 ? (
+                        <div className="p-5">
+                          <div className="mb-4 flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2E7BBE]">
+                                Upcoming Cleanings
+                              </p>
+                              <p className="mt-1 text-sm text-slate-500">
+                                Jobs that still need to be completed
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-[#2E7BBE]">
+                              {upcomingSchedules.length} open
+                            </span>
+                          </div>
 
-                        {schedules.map(
-                          (schedule) => {
-
-                            const property =
-                              properties.find(
-                                (p) =>
-                                  p.id ===
-                                  schedule.property_id
+                          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                            {upcomingSchedules.map((schedule) => {
+                              const property = properties.find(
+                                (p) => p.id === schedule.property_id
                               );
 
-                            return (
-                              <ScheduleCard
-                                key={schedule.id}
-
-                                property={
-                                  property?.name ||
-                                  "Unknown Property"
-                                }
-
-                                cleaner={
-                                  employee.name
-                                }
-
-                                date={
-                                  schedule.cleaning_date
-                                }
-
-                                checkout={
-                                  schedule.checkout_time
-                                }
-
-                                checkin={
-                                  schedule.checkin_time
-                                }
-
-                                cleanerPay={
-                                  schedule.cleaner_pay
-                                }
-
-                                companyCharge={
-                                  schedule.company_charge
-                                }
-
-                                status={
-                                  schedule.status
-                                }
-
-                                extras={
-                                  schedule.extras?.map(
-                                    (
-                                      extra: any
-                                    ) => ({
-                                      name:
-                                        extra.extra_id ===
-                                        1
-                                          ? "🧺 Laundry"
-                                          : extra.extra_id ===
-                                            2
-                                          ? "🕒 Extra Hour"
-                                          : extra.extra_id ===
-                                            3
-                                          ? "🧼 Deep Clean"
-                                          : extra.extra_id ===
-                                            4
-                                          ? "🪟 Windows"
-                                          : extra.extra_id ===
-                                            5
-                                          ? "🐶 Pet Hair"
-                                          : extra.extra_id ===
-                                            6
-                                          ? "🛏️ Extra Linen"
-                                          : extra.extra_id ===
-                                            7
-                                          ? "☣️ Biohazard"
-                                          : extra.extra_id ===
-                                            8
-                                          ? "🌿 Balcony"
-                                          : "Extra",
-
-                                      quantity:
-                                        extra.quantity,
-                                    })
-                                  )
-                                }
-
-                                selected={selectedSchedules.includes(
-                                  schedule.id
-                                )}
-
-                                onSelect={() => {
-
-                                  if (
-                                    selectedSchedules.includes(
-                                      schedule.id
-                                    )
-                                  ) {
-
-                                    setSelectedSchedules(
-                                      selectedSchedules.filter(
-                                        (id) =>
-                                          id !==
-                                          schedule.id
-                                      )
-                                    );
-
-                                  } else {
-
-                                    setSelectedSchedules(
-                                      [
+                              return (
+                                <ScheduleCard
+                                  key={schedule.id}
+                                  property={property?.name || "Unknown Property"}
+                                  cleaner={employee.name}
+                                  date={schedule.cleaning_date}
+                                  checkout={schedule.checkout_time}
+                                  checkin={schedule.checkin_time}
+                                  cleanerPay={schedule.cleaner_pay}
+                                  companyCharge={schedule.company_charge}
+                                  status={schedule.status}
+                                  extras={schedule.extras?.map((extra: any) => ({
+                                    name:
+                                      extra.extra_id === 1
+                                        ? "🧺 Laundry"
+                                        : extra.extra_id === 2
+                                        ? "🕒 Extra Hour"
+                                        : extra.extra_id === 3
+                                        ? "🧼 Deep Clean"
+                                        : extra.extra_id === 4
+                                        ? "🪟 Windows"
+                                        : extra.extra_id === 5
+                                        ? "🐶 Pet Hair"
+                                        : extra.extra_id === 6
+                                        ? "🛏️ Extra Linen"
+                                        : extra.extra_id === 7
+                                        ? "☣️ Biohazard"
+                                        : extra.extra_id === 8
+                                        ? "🌿 Balcony"
+                                        : "Extra",
+                                    quantity: extra.quantity,
+                                  }))}
+                                  selected={selectedSchedules.includes(schedule.id)}
+                                  onSelect={() => {
+                                    if (selectedSchedules.includes(schedule.id)) {
+                                      setSelectedSchedules(
+                                        selectedSchedules.filter((id) => id !== schedule.id)
+                                      );
+                                    } else {
+                                      setSelectedSchedules([
                                         ...selectedSchedules,
                                         schedule.id,
-                                      ]
-                                    );
-
-                                  }
-
-                                }}
-
-                                onView={() => {
-                                  setViewingSchedule(
-                                    schedule
-                                  );
-                                }}
-
-                                onEdit={() => {
-                                  setEditingSchedule(
-                                    schedule
-                                  );
-
-                                  setShowForm(true);
-                                }}
-
-                                onDelete={async () => {
-
-                                  const confirmed =
-                                    confirm(
+                                      ]);
+                                    }
+                                  }}
+                                  onView={() => setViewingSchedule(schedule)}
+                                  onEdit={() => {
+                                    setEditingSchedule(schedule);
+                                    setShowForm(true);
+                                  }}
+                                  onDelete={async () => {
+                                    const confirmed = confirm(
                                       "Delete this cleaning?"
                                     );
+                                    if (!confirmed) return;
+                                    await deleteSchedule(schedule.id);
+                                    await loadSchedules();
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="px-5 pb-5">
+                          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-5 py-6 text-center">
+                            <p className="text-sm font-bold text-slate-600">
+                              No upcoming cleanings
+                            </p>
+                            <p className="mt-1 text-xs text-slate-400">
+                              All assigned jobs are completed.
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
-                                  if (!confirmed) {
-                                    return;
-                                  }
+                      {/* COMPLETED HISTORY */}
 
-                                  await deleteSchedule(
-                                    schedule.id
-                                  );
+                      {completedSchedules.length > 0 && (
+                        <div className="border-t border-slate-100 bg-slate-50/40">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedCompleted((current) => ({
+                                ...current,
+                                [employee.id]: !isCompletedExpanded,
+                              }))
+                            }
+                            className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-slate-100/70 sm:px-6"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                                <CheckCircle2 className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-slate-800">
+                                  Completed History
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {completedSchedules.length}{" "}
+                                  {completedSchedules.length === 1
+                                    ? "completed cleaning"
+                                    : "completed cleanings"}
+                                </p>
+                              </div>
+                            </div>
 
-                                  await loadSchedules();
+                            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-500 shadow-sm">
+                              {isCompletedExpanded ? "Hide history ↑" : "View history ↓"}
+                            </span>
+                          </button>
 
-                                }}
-                              />
-                            );
-                          }
-                        )}
+                          {isCompletedExpanded && (
+                            <div className="space-y-2 px-5 pb-5 sm:px-6">
+                              {completedSchedules.map((schedule) => {
+                                const property = properties.find(
+                                  (p) => p.id === schedule.property_id
+                                );
 
-                      </div>
+                                return (
+                                  <div
+                                    key={schedule.id}
+                                    className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                                  >
+                                    <div className="flex min-w-0 items-start gap-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (selectedSchedules.includes(schedule.id)) {
+                                            setSelectedSchedules(
+                                              selectedSchedules.filter(
+                                                (id) => id !== schedule.id
+                                              )
+                                            );
+                                          } else {
+                                            setSelectedSchedules([
+                                              ...selectedSchedules,
+                                              schedule.id,
+                                            ]);
+                                          }
+                                        }}
+                                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
+                                          selectedSchedules.includes(schedule.id)
+                                            ? "border-[#2E7BBE] bg-[#2E7BBE] text-white"
+                                            : "border-slate-300 bg-white"
+                                        }`}
+                                        aria-label="Select completed cleaning"
+                                      >
+                                        {selectedSchedules.includes(schedule.id) && (
+                                          <CheckCircle2 className="h-4 w-4" />
+                                        )}
+                                      </button>
+
+                                      <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <p className="truncate text-sm font-black text-slate-800">
+                                            {property?.name || "Unknown Property"}
+                                          </p>
+                                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-600">
+                                            Completed
+                                          </span>
+                                        </div>
+                                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                                          <span>{schedule.cleaning_date}</span>
+                                          <span>Cleaner Pay: <strong className="text-slate-700">${schedule.cleaner_pay}</strong></span>
+                                          <span>Company: <strong className="text-slate-700">${schedule.company_charge}</strong></span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex shrink-0 items-center gap-2 pl-8 sm:pl-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => setViewingSchedule(schedule)}
+                                        className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-[#2E7BBE] transition hover:bg-blue-100"
+                                      >
+                                        View
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingSchedule(schedule);
+                                          setShowForm(true);
+                                        }}
+                                        className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const confirmed = confirm(
+                                            "Delete this cleaning?"
+                                          );
+                                          if (!confirmed) return;
+                                          await deleteSchedule(schedule.id);
+                                          await loadSchedules();
+                                        }}
+                                        className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                     </div>
                   );

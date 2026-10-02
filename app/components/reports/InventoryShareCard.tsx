@@ -1,19 +1,37 @@
-"use client";
+import React from "react";
+import {
+  Bath,
+  CalendarDays,
+  CookingPot,
+  Sparkles,
+  UserRound,
+  WashingMachine,
+  Wrench,
+  Home,
+  StickyNote,
+} from "lucide-react";
+
+type CleanerSupplyValue = {
+  unit: "Gallon" | "Bottle";
+  quantity: number;
+};
 
 type InventoryShareCardProps = {
   property: string;
   cleaner: string;
   date: string;
   inventory: Record<string, number>;
+  cleanerSupplies?: Record<string, CleanerSupplyValue>;
   notes: string;
 };
 
 const sections = [
   {
     title: "Kitchen",
-    icon: "🍴",
-    accent: "#2E7BBE",
-    background: "#F1F7FD",
+    description: "Kitchen supplies and consumables",
+    icon: CookingPot,
+    iconBg: "bg-blue-50",
+    iconColor: "text-[#2E7BBE]",
     items: [
       "Paper Towels",
       "Garbage Bags",
@@ -29,554 +47,196 @@ const sections = [
   },
   {
     title: "Bathroom",
-    icon: "🛁",
-    accent: "#159A9C",
-    background: "#F0FBFB",
-    items: [
-      "Toilet Paper",
-      "Body Wash",
-      "Shampoo",
-      "Conditioner",
-      "Hand Soap",
-    ],
+    description: "Bathroom and guest essentials",
+    icon: Bath,
+    iconBg: "bg-cyan-50",
+    iconColor: "text-cyan-600",
+    items: ["Toilet Paper", "Body Wash", "Shampoo", "Conditioner", "Hand Soap"],
   },
   {
     title: "Laundry",
-    icon: "🧺",
-    accent: "#7C4DCC",
-    background: "#F8F4FD",
-    items: [
-      "Laundry Pods",
-      "Bleach",
-      "All Purpose Cleaner",
-      "Floor Cleaner",
-      "Glass Cleaner",
-    ],
+    description: "Laundry and cleaning products",
+    icon: WashingMachine,
+    iconBg: "bg-purple-50",
+    iconColor: "text-purple-600",
+    items: ["Laundry Pods", "Bleach", "All Purpose Cleaner", "Floor Cleaner", "Glass Cleaner"],
   },
   {
     title: "Maintenance",
-    icon: "🔧",
-    accent: "#D97706",
-    background: "#FFF8ED",
-    items: [
-      "Light Bulbs",
-      "Batteries",
-    ],
+    description: "Basic maintenance supplies",
+    icon: Wrench,
+    iconBg: "bg-amber-50",
+    iconColor: "text-amber-600",
+    items: ["Light Bulbs", "Batteries"],
   },
 ];
+
+const cleanerSupplyItems = ["WINDEX", "LYSOL", "CLOROX", "PINESOL", "VIM CREAM"];
+
+function InventorySection({
+  title,
+  description,
+  icon: Icon,
+  iconBg,
+  iconColor,
+  items,
+  inventory,
+}: {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
+  items: string[];
+  inventory: Record<string, number>;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[24px] border border-slate-100 bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]">
+      <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg} ${iconColor}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="text-sm font-extrabold uppercase tracking-wide text-[#172A3F]">{title}</h3>
+          <p className="mt-0.5 text-[10px] text-slate-400">{description}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+        <div className="divide-y divide-slate-100">
+          {items.filter((_, index) => index % 2 === 0).map((item) => (
+            <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
+              <span className="text-xs font-semibold text-slate-600">{item}</span>
+              <span className="min-w-[34px] rounded-full bg-[#EEF6FF] px-2.5 py-1 text-center text-xs font-extrabold text-[#2E7BBE]">
+                {inventory[item] ?? 0}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="divide-y divide-slate-100">
+          {items.filter((_, index) => index % 2 === 1).map((item) => (
+            <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
+              <span className="text-xs font-semibold text-slate-600">{item}</span>
+              <span className="min-w-[34px] rounded-full bg-[#EEF6FF] px-2.5 py-1 text-center text-xs font-extrabold text-[#2E7BBE]">
+                {inventory[item] ?? 0}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function InventoryShareCard({
   property,
   cleaner,
   date,
   inventory,
+  cleanerSupplies = {},
   notes,
 }: InventoryShareCardProps) {
   return (
-    <div
-      style={{
-        width: "900px",
-        background: "#FFFFFF",
-        color: "#172033",
-        fontFamily:
-          "Arial, Helvetica, sans-serif",
-        padding: "34px",
-        boxSizing: "border-box",
-      }}
-    >
-
-      {/* =========================
-          HEADER
-      ========================== */}
-
-      <div
-        style={{
-          background:
-            "linear-gradient(135deg, #205A91 0%, #2E7BBE 55%, #3D94D4 100%)",
-          borderRadius: "24px",
-          padding: "30px 34px",
-          color: "#FFFFFF",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-
-        <div
-          style={{
-            position: "absolute",
-            right: "-45px",
-            top: "-65px",
-            width: "190px",
-            height: "190px",
-            borderRadius: "999px",
-            background:
-              "rgba(255,255,255,0.10)",
-          }}
-        />
-
-        <div
-          style={{
-            position: "absolute",
-            right: "70px",
-            bottom: "-85px",
-            width: "150px",
-            height: "150px",
-            borderRadius: "999px",
-            background:
-              "rgba(255,255,255,0.06)",
-          }}
-        />
-
-        <div
-          style={{
-            position: "relative",
-            zIndex: 2,
-          }}
-        >
-
-          <div
-            style={{
-              fontSize: "30px",
-              fontWeight: 800,
-              letterSpacing: "1px",
-              lineHeight: 1.1,
-            }}
-          >
-            PURESPACE
-          </div>
-
-          <div
-            style={{
-              fontSize: "13px",
-              fontWeight: 700,
-              letterSpacing: "3px",
-              marginTop: "5px",
-              opacity: 0.9,
-            }}
-          >
-            CLEANING
-          </div>
-
-          <div
-            style={{
-              marginTop: "18px",
-              fontSize: "21px",
-              fontWeight: 700,
-            }}
-          >
-            Unit Inventory Report
-          </div>
-
-          <div
-            style={{
-              marginTop: "5px",
-              fontSize: "12px",
-              opacity: 0.82,
-            }}
-          >
-            Inventory verification & supply check
-          </div>
-
-        </div>
-      </div>
-
-      {/* =========================
-          INFORMATION
-      ========================== */}
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "1.35fr 1fr 0.85fr",
-          gap: "12px",
-          marginTop: "18px",
-        }}
-      >
-
-        <InfoCard
-          label="PROPERTY"
-          value={property || "Not specified"}
-          accent="#2E7BBE"
-          background="#F2F7FC"
-        />
-
-        <InfoCard
-          label="CLEANER"
-          value={cleaner || "Not specified"}
-          accent="#159A9C"
-          background="#F1FBF8"
-        />
-
-        <InfoCard
-          label="DATE"
-          value={date}
-          accent="#7C4DCC"
-          background="#F8F5FD"
-        />
-
-      </div>
-
-      {/* =========================
-          SUMMARY
-      ========================== */}
-
-      <div
-        style={{
-          marginTop: "18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "#F8FAFC",
-          border: "1px solid #E7EDF4",
-          borderRadius: "16px",
-          padding: "13px 18px",
-        }}
-      >
-
-        <div>
-          <div
-            style={{
-              fontSize: "10px",
-              fontWeight: 800,
-              color: "#718096",
-              letterSpacing: "1.5px",
-            }}
-          >
-            INVENTORY STATUS
-          </div>
-
-          <div
-            style={{
-              marginTop: "3px",
-              fontSize: "13px",
-              fontWeight: 700,
-              color: "#25324A",
-            }}
-          >
-            Supply levels recorded at property
-          </div>
-        </div>
-
-        <div
-          style={{
-            background: "#EAF8F0",
-            color: "#16834A",
-            padding: "7px 12px",
-            borderRadius: "999px",
-            fontSize: "11px",
-            fontWeight: 800,
-          }}
-        >
-          ✓ COMPLETED
-        </div>
-
-      </div>
-
-      {/* =========================
-          INVENTORY GRID
-      ========================== */}
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "1fr 1fr",
-          gap: "14px",
-          marginTop: "18px",
-        }}
-      >
-
-        {sections.map((section) => (
-
-          <InventorySection
-            key={section.title}
-            section={section}
-            inventory={inventory}
-          />
-
-        ))}
-
-      </div>
-
-      {/* =========================
-          NOTES
-      ========================== */}
-
-      <div
-        style={{
-          marginTop: "14px",
-          background: "#FFFBEA",
-          border: "1px solid #F2E7B7",
-          borderRadius: "16px",
-          padding: "16px 18px",
-        }}
-      >
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            color: "#B77900",
-            fontSize: "12px",
-            fontWeight: 800,
-            letterSpacing: "0.8px",
-          }}
-        >
-          <span style={{ fontSize: "15px" }}>
-            📝
-          </span>
-
-          NOTES
-        </div>
-
-        <div
-          style={{
-            marginTop: "8px",
-            fontSize: "12px",
-            color: notes
-              ? "#334155"
-              : "#94A3B8",
-            lineHeight: 1.5,
-          }}
-        >
-          {notes || "No notes recorded."}
-        </div>
-
-      </div>
-
-      {/* =========================
-          FOOTER
-      ========================== */}
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginTop: "18px",
-          paddingTop: "13px",
-          borderTop: "1px solid #E7EDF4",
-          color: "#94A3B8",
-          fontSize: "9px",
-        }}
-      >
-
-        <span>
-          PURESPACE CLEANING
-        </span>
-
-        <span>
-          Professional Property Management
-        </span>
-
-      </div>
-
-    </div>
-  );
-}
-
-
-/* =====================================
-   INFO CARD
-===================================== */
-
-function InfoCard({
-  label,
-  value,
-  accent,
-  background,
-}: {
-  label: string;
-  value: string;
-  accent: string;
-  background: string;
-}) {
-  return (
-    <div
-      style={{
-        background,
-        borderRadius: "16px",
-        padding: "14px 16px",
-        minHeight: "58px",
-        border: "1px solid rgba(0,0,0,0.04)",
-      }}
-    >
-
-      <div
-        style={{
-          fontSize: "9px",
-          fontWeight: 800,
-          color: accent,
-          letterSpacing: "1.4px",
-        }}
-      >
-        {label}
-      </div>
-
-      <div
-        style={{
-          marginTop: "5px",
-          fontSize: "13px",
-          fontWeight: 700,
-          color: "#1E293B",
-          lineHeight: 1.25,
-        }}
-      >
-        {value}
-      </div>
-
-    </div>
-  );
-}
-
-
-/* =====================================
-   INVENTORY SECTION
-===================================== */
-
-function InventorySection({
-  section,
-  inventory,
-}: {
-  section: {
-    title: string;
-    icon: string;
-    accent: string;
-    background: string;
-    items: string[];
-  };
-  inventory: Record<string, number>;
-}) {
-  return (
-    <div
-      style={{
-        background: section.background,
-        borderRadius: "18px",
-        padding: "15px",
-        border: `1px solid ${section.accent}18`,
-      }}
-    >
-
-      {/* Section Header */}
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "9px",
-          marginBottom: "10px",
-        }}
-      >
-
-        <div
-          style={{
-            width: "29px",
-            height: "29px",
-            borderRadius: "9px",
-            background: "#FFFFFF",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "15px",
-            boxShadow:
-              "0 2px 6px rgba(15,23,42,0.06)",
-          }}
-        >
-          {section.icon}
-        </div>
-
-        <div
-          style={{
-            fontSize: "13px",
-            fontWeight: 800,
-            color: section.accent,
-            letterSpacing: "0.4px",
-          }}
-        >
-          {section.title.toUpperCase()}
-        </div>
-
-      </div>
-
-      {/* Items */}
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            section.items.length > 5
-              ? "1fr 1fr"
-              : "1fr",
-          gap: "6px",
-        }}
-      >
-
-        {section.items.map((item) => {
-
-          const quantity =
-            inventory[item] ?? 0;
-
-          return (
-            <div
-              key={item}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "7px",
-                background: "#FFFFFF",
-                borderRadius: "9px",
-                padding: "7px 8px 7px 10px",
-                minHeight: "27px",
-                boxSizing: "border-box",
-                border:
-                  "1px solid rgba(226,232,240,0.8)",
-              }}
-            >
-
-              <span
-                style={{
-                  fontSize: "9px",
-                  color: "#475569",
-                  lineHeight: 1.2,
-                }}
-              >
-                {item}
-              </span>
-
-              <span
-                style={{
-                  flexShrink: 0,
-                  minWidth: "23px",
-                  height: "20px",
-                  padding: "0 5px",
-                  borderRadius: "7px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background:
-                    quantity > 0
-                      ? "#EAF8F0"
-                      : "#FFF0F1",
-                  color:
-                    quantity > 0
-                      ? "#16834A"
-                      : "#DC3545",
-                  fontSize: "9px",
-                  fontWeight: 800,
-                }}
-              >
-                {quantity}
-              </span>
-
+    <div className="w-[900px] bg-[#F4F8FC] p-8 font-sans text-[#14263A]">
+      <div className="overflow-hidden rounded-[30px] bg-white shadow-[0_18px_60px_rgba(15,23,42,0.10)]">
+        <header className="bg-[#0F1C3F] px-8 py-7 text-white">
+          <div className="flex items-center justify-between gap-6">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100">
+                <Sparkles className="h-3.5 w-3.5" />
+                PureSpace Cleaning
+              </div>
+              <h1 className="text-3xl font-extrabold tracking-tight">Unit Inventory Report</h1>
+              <p className="mt-1 text-sm text-blue-100/70">Supplies remaining after today&apos;s cleaning</p>
             </div>
-          );
-        })}
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-3xl">📦</div>
+          </div>
+        </header>
 
+        <div className="grid grid-cols-3 gap-4 p-6">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[#2E7BBE]">
+              <Home className="h-4 w-4" /> Property
+            </div>
+            <p className="mt-2 text-sm font-extrabold text-[#172A3F]">{property || "—"}</p>
+          </div>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+              <UserRound className="h-4 w-4" /> Cleaner
+            </div>
+            <p className="mt-2 text-sm font-extrabold text-[#172A3F]">{cleaner || "—"}</p>
+          </div>
+          <div className="rounded-2xl border border-purple-100 bg-purple-50/70 p-4">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-purple-700">
+              <CalendarDays className="h-4 w-4" /> Date
+            </div>
+            <p className="mt-2 text-sm font-extrabold text-[#172A3F]">{date || "—"}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-5 px-6 pb-6">
+          {sections.map((section) => (
+            <InventorySection key={section.title} {...section} inventory={inventory} />
+          ))}
+        </div>
+
+        <section className="mx-6 mb-6 overflow-hidden rounded-[24px] border border-emerald-100 bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]">
+          <div className="flex items-center gap-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold uppercase tracking-wide text-[#172A3F]">Cleaner Supplies</h3>
+              <p className="mt-0.5 text-[10px] text-slate-400">Products carried by the cleaner</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-slate-100">
+            <div className="divide-y divide-slate-100">
+              {cleanerSupplyItems.filter((_, index) => index % 2 === 0).map((item) => {
+                const value = cleanerSupplies[item] ?? { unit: "Bottle", quantity: 0 };
+                return (
+                  <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <span className="text-xs font-semibold text-slate-600">{item}</span>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">
+                      {value.quantity} {value.unit}{value.quantity === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="divide-y divide-slate-100">
+              {cleanerSupplyItems.filter((_, index) => index % 2 === 1).map((item) => {
+                const value = cleanerSupplies[item] ?? { unit: "Bottle", quantity: 0 };
+                return (
+                  <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <span className="text-xs font-semibold text-slate-600">{item}</span>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">
+                      {value.quantity} {value.unit}{value.quantity === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-6 mb-7 rounded-[24px] border border-amber-100 bg-amber-50/60 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <StickyNote className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold uppercase tracking-wide text-amber-800">Notes</h3>
+              <p className="text-[10px] text-amber-700/70">Office observations</p>
+            </div>
+          </div>
+          <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-slate-600">{notes?.trim() || "No notes"}</p>
+        </section>
+
+        <footer className="border-t border-slate-100 px-6 py-4 text-center text-[10px] font-medium text-slate-400">
+          PureSpace Cleaning · Inventory Management
+        </footer>
       </div>
-
     </div>
   );
 }
