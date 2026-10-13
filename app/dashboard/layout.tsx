@@ -138,6 +138,12 @@ export default function DashboardLayout({
               <Users className="h-5 w-5" />
             )}
 
+{menuItem(
+  "/dashboard/calendar",
+  "Calendar & Bookings",
+  <CalendarDays className="h-5 w-5" />
+)}
+
             {menuItem(
               "/dashboard/schedule",
               "Schedule",
