@@ -12,15 +12,19 @@ export async function POST(request: Request) {
     const { action } = body;
 
     if (action === "list") {
-      const session = await requireOfficeSession();
+      const officeSession = await requireOfficeSession();
+      const ownerSession = officeSession
+        ? null
+        : await requireOwnerSession();
 
-if (!session) {
-  return NextResponse.json(
-    { success: false },
-    { status: 401 }
-  );
-}
-      const { data, error } = await supabaseAdmin
+      if (!officeSession && !ownerSession) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+
+      let query = supabaseAdmin
         .from("owners")
         .select(`
           id,
@@ -30,14 +34,20 @@ if (!session) {
           terms_accepted,
           terms_accepted_at,
           terms_version
-        `)
-        .order("name");
+        `);
+
+      if (ownerSession) {
+        query = query.eq("id", ownerSession.ownerId);
+      } else {
+        query = query.order("name");
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Owners list error:", error);
-
         return NextResponse.json(
-          { success: false },
+          { success: false, error: "Unable to load owners" },
           { status: 500 }
         );
       }
