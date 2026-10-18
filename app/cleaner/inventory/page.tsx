@@ -25,16 +25,20 @@ import {
   CookingPot,
   WashingMachine,
 } from "lucide-react";
+type InventoryUnit = "Box" | "Unit";
+type InventoryStatus = "Sufficient" | "Restock" | "Out of stock";
 
-type CleanerSupplyValue = {
-  unit: "Gallon" | "Bottle";
+type InventoryValue = {
   quantity: number;
+  unit: InventoryUnit;
+  status: InventoryStatus;
 };
 
+type CleanerSupplyValue = InventoryValue;
 const downloadInventoryReport = (
   employee: any,
   property: any,
-  inventory: Record<string, number>,
+inventory: Record<string, InventoryValue>,
   cleanerSupplies: Record<string, CleanerSupplyValue>,
   notes: string
 ) => {
@@ -82,68 +86,135 @@ const downloadInventoryReport = (
     pdf.text(value || "—", x + 5, y + 15);
   };
 
-  const addSection = (title: string, items: string[], accent: [number, number, number]) => {
-    ensureSpace(16 + items.length * 7);
+ const addSection = (
+  title: string,
+  items: string[],
+  accent: [number, number, number]
+) => {
+  ensureSpace(16 + items.length * 9);
 
-    pdf.setFillColor(...accent);
-    pdf.roundedRect(margin, y, pageWidth - margin * 2, 10, 3, 3, "F");
-    pdf.setTextColor(255, 255, 255);
+  pdf.setFillColor(...accent);
+  pdf.roundedRect(margin, y, pageWidth - margin * 2, 10, 3, 3, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(9);
+  pdf.text(title.toUpperCase(), margin + 5, y + 6.7);
+  y += 14;
+
+  items.forEach((item) => {
+    ensureSpace(9);
+
+    const value: InventoryValue = inventory[item] ?? {
+      quantity: 0,
+      unit: "Unit",
+      status: "Out of stock",
+    };
+
+    pdf.setTextColor(55, 65, 81);
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(9);
-    pdf.text(title.toUpperCase(), margin + 5, y + 6.7);
-    y += 14;
+    pdf.setFontSize(8);
+    pdf.text(item, margin + 3, y);
 
-    items.forEach((item) => {
-      ensureSpace(7);
-      const quantity = Number(inventory[item] ?? 0);
-      pdf.setTextColor(55, 65, 81);
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8.5);
-      pdf.text(item, margin + 3, y);
-      pdf.setFillColor(239, 246, 255);
-      pdf.roundedRect(pageWidth - margin - 25, y - 4.5, 25, 6.5, 2, 2, "F");
-      pdf.setTextColor(46, 123, 190);
-      pdf.setFont("helvetica", "bold");
-      pdf.text(String(quantity), pageWidth - margin - 12.5, y, { align: "center" });
-      y += 7;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7);
+    pdf.text(`${value.quantity} ${value.unit}`, margin + 3, y + 4);
+
+    const statusText = value.status;
+    const statusColors: Record<
+      InventoryStatus,
+      [number, number, number]
+    > = {
+      Sufficient: [220, 252, 231],
+      Restock: [254, 243, 199],
+      "Out of stock": [254, 226, 226],
+    };
+
+    const statusTextColors: Record<
+      InventoryStatus,
+      [number, number, number]
+    > = {
+      Sufficient: [22, 101, 52],
+      Restock: [146, 64, 14],
+      "Out of stock": [153, 27, 27],
+    };
+
+    pdf.setFillColor(...statusColors[statusText]);
+    pdf.roundedRect(pageWidth - margin - 35, y - 3.5, 35, 7, 2, 2, "F");
+    pdf.setTextColor(...statusTextColors[statusText]);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(6.5);
+    pdf.text(statusText, pageWidth - margin - 17.5, y + 0.5, {
+      align: "center",
     });
 
-    y += 3;
-  };
+    y += 9;
+  });
 
+  y += 3;
+};
   const addCleanerSupplies = () => {
-    const names = ["WINDEX", "LYSOL", "CLOROX", "PINESOL", "VIM CREAM"];
-    ensureSpace(16 + names.length * 8);
+  const names = ["WINDEX", "LYSOL", "CLOROX", "PINESOL", "VIM CREAM"];
 
-    pdf.setFillColor(22, 131, 74);
-    pdf.roundedRect(margin, y, pageWidth - margin * 2, 10, 3, 3, "F");
-    pdf.setTextColor(255, 255, 255);
+  ensureSpace(16 + names.length * 9);
+
+  pdf.setFillColor(22, 131, 74);
+  pdf.roundedRect(margin, y, pageWidth - margin * 2, 10, 3, 3, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(9);
+  pdf.text("CLEANER SUPPLIES", margin + 5, y + 6.7);
+  y += 14;
+
+  names.forEach((name) => {
+    ensureSpace(9);
+
+    const value: CleanerSupplyValue = cleanerSupplies[name] ?? {
+      quantity: 0,
+      unit: "Unit",
+      status: "Out of stock",
+    };
+
+    pdf.setTextColor(55, 65, 81);
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(9);
-    pdf.text("CLEANER SUPPLIES", margin + 5, y + 6.7);
-    y += 14;
+    pdf.setFontSize(8);
+    pdf.text(name, margin + 3, y);
 
-    names.forEach((name) => {
-      ensureSpace(8);
-      const value = cleanerSupplies[name] ?? { unit: "Bottle", quantity: 0 };
-      const quantity = Number(value.quantity ?? 0);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7);
+    pdf.text(`${value.quantity} ${value.unit}`, margin + 3, y + 4);
 
-      pdf.setTextColor(55, 65, 81);
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8.5);
-      pdf.text(name, margin + 3, y);
+    const statusColors: Record<
+      InventoryStatus,
+      [number, number, number]
+    > = {
+      Sufficient: [220, 252, 231],
+      Restock: [254, 243, 199],
+      "Out of stock": [254, 226, 226],
+    };
 
-      pdf.setFillColor(236, 253, 245);
-      pdf.roundedRect(pageWidth - margin - 45, y - 4.5, 45, 6.5, 2, 2, "F");
-      pdf.setTextColor(22, 131, 74);
-      pdf.setFont("helvetica", "bold");
-      pdf.text(`${quantity} ${value.unit}${quantity === 1 ? "" : "s"}`, pageWidth - margin - 22.5, y, { align: "center" });
-      y += 8;
+    const statusTextColors: Record<
+      InventoryStatus,
+      [number, number, number]
+    > = {
+      Sufficient: [22, 101, 52],
+      Restock: [146, 64, 14],
+      "Out of stock": [153, 27, 27],
+    };
+
+    pdf.setFillColor(...statusColors[value.status]);
+    pdf.roundedRect(pageWidth - margin - 35, y - 3.5, 35, 7, 2, 2, "F");
+    pdf.setTextColor(...statusTextColors[value.status]);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(6.5);
+    pdf.text(value.status, pageWidth - margin - 17.5, y + 0.5, {
+      align: "center",
     });
 
-    y += 3;
-  };
+    y += 9;
+  });
 
+  y += 3;
+};
   addHeader();
 
   const cardGap = 5;
@@ -201,10 +272,13 @@ export default function InventoryPage() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [propertyId, setPropertyId] = useState("");
-  const [inventory, setInventory] = useState<Record<string, number>>({});
-  const [cleanerSupplies, setCleanerSupplies] = useState<
-    Record<string, { unit: "Gallon" | "Bottle"; quantity: number }>
-  >({});
+  const [inventory, setInventory] = useState<
+  Record<string, InventoryValue>
+>({});
+
+const [cleanerSupplies, setCleanerSupplies] = useState<
+  Record<string, CleanerSupplyValue>
+>({});
   const [notes, setNotes] = useState("");
 
   const shareRef = useRef<HTMLDivElement>(null);
@@ -334,231 +408,225 @@ Thank you! ✅`;
   const selectedProperty = properties.find(
     (p) => String(p.id) === propertyId
   );
-
-  const updateInventory = (
-    item: string,
-    value: number
-  ) => {
-    setInventory({
-      ...inventory,
-      [item]: value,
-    });
+const getInventoryValue = (item: string): InventoryValue => {
+  return inventory[item] ?? {
+    quantity: 0,
+    unit: "Unit",
+    status: "Out of stock",
   };
+};
 
-  const updateCleanerSupply = (
-    item: string,
-    field: "unit" | "quantity",
-    value: "Gallon" | "Bottle" | number
-  ) => {
-    setCleanerSupplies((current) => {
-      const existing = current[item] ?? {
-        unit: "Bottle",
-        quantity: 0,
-      };
+const updateInventory = (
+  item: string,
+  field: keyof InventoryValue,
+  value: number | InventoryUnit | InventoryStatus
+) => {
+  setInventory((previous) => {
+    const current = previous[item] ?? {
+      quantity: 0,
+      unit: "Unit" as InventoryUnit,
+      status: "Out of stock" as InventoryStatus,
+    };
 
-      return {
-        ...current,
-        [item]: {
-          unit:
-            field === "unit"
-              ? (value as "Gallon" | "Bottle")
-              : existing.unit,
-          quantity:
-            field === "quantity"
-              ? Number(value)
-              : existing.quantity,
-        },
-      };
-    });
-  };
+    const updated = {
+      ...current,
+      [field]: value,
+    };
 
-  const renderInventorySection = (
-    title: string,
-    description: string,
-    items: string[],
-    icon: React.ReactNode,
-    iconBackground: string,
-    iconColor: string
-  ) => (
-    <section className="overflow-hidden rounded-[26px] border border-slate-100 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
+    if (field === "quantity" && typeof value === "number") {
+      updated.status =
+        value <= 0 ? "Out of stock" : current.status === "Out of stock" ? "Restock" : current.status;
+    }
 
-      {/* Section Header */}
+    if (updated.quantity <= 0) {
+      updated.status = "Out of stock";
+    }
 
-      <div className="flex items-center gap-4 border-b border-slate-100 px-5 py-5 sm:px-6">
+    return {
+      ...previous,
+      [item]: updated,
+    };
+  });
+};
 
-        <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconBackground} ${iconColor}`}
-        >
-          {icon}
-        </div>
+const updateCleanerSupply = (
+  item: string,
+  field: keyof CleanerSupplyValue,
+  value: number | InventoryUnit | InventoryStatus
+) => {
+  setCleanerSupplies((previous) => {
+    const current = previous[item] ?? {
+      quantity: 0,
+      unit: "Unit" as InventoryUnit,
+      status: "Out of stock" as InventoryStatus,
+    };
 
-        <div className="min-w-0">
+    const updated = {
+      ...current,
+      [field]: value,
+    };
 
-          <h2 className="text-lg font-bold text-[#172A3F] sm:text-xl">
-            {title}
-          </h2>
+    if (field === "quantity" && typeof value === "number") {
+      updated.status =
+        value <= 0 ? "Out of stock" : current.status === "Out of stock" ? "Restock" : current.status;
+    }
 
-          <p className="mt-0.5 text-xs leading-5 text-slate-500 sm:text-sm">
-            {description}
-          </p>
+    if (updated.quantity <= 0) {
+      updated.status = "Out of stock";
+    }
 
-        </div>
+    return {
+      ...previous,
+      [item]: updated,
+    };
+  });
+};
 
+const renderInventorySection = (
+  title: string,
+  description: string,
+  items: string[],
+  icon: React.ReactNode,
+  iconBackground: string,
+  iconColor: string
+) => (
+  <section className="overflow-hidden rounded-[26px] border border-slate-100 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
+    <div className="flex items-center gap-4 border-b border-slate-100 px-5 py-5 sm:px-6">
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconBackground} ${iconColor}`}>
+        {icon}
       </div>
+      <div className="min-w-0">
+        <h2 className="text-lg font-bold text-[#172A3F] sm:text-xl">{title}</h2>
+        <p className="mt-0.5 text-xs leading-5 text-slate-500 sm:text-sm">{description}</p>
+      </div>
+    </div>
 
-      {/* Items */}
+    <div className="divide-y divide-slate-100">
+      {items.map((item) => {
+        const current = getInventoryValue(item);
 
-      <div className="divide-y divide-slate-100">
+        return (
+          <div key={item} className="flex flex-col gap-3 px-5 py-4 sm:px-6">
+            <p className="text-sm font-semibold text-[#273B50]">{item}</p>
 
-        {items.map((item) => (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <label className="text-xs font-semibold text-slate-500">
+                Quantity
+                <select
+                  value={current.quantity}
+                  onChange={(e) => updateInventory(item, "quantity", Number(e.target.value))}
+                  className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 text-sm font-bold text-[#172A3F]"
+                >
+                  {Array.from({ length: 21 }, (_, i) => (
+                    <option key={i} value={i}>{i}</option>
+                  ))}
+                </select>
+              </label>
 
-          <div
-            key={item}
-            className="flex min-h-[72px] items-center justify-between gap-4 px-5 py-3 sm:px-6"
-          >
+              <label className="text-xs font-semibold text-slate-500">
+                Unit
+                <select
+                  value={current.unit}
+                  onChange={(e) => updateInventory(item, "unit", e.target.value as InventoryUnit)}
+                  className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 text-sm font-bold text-[#172A3F]"
+                >
+                  <option value="Box">Box</option>
+                  <option value="Unit">Unit</option>
+                </select>
+              </label>
 
-            <div className="min-w-0">
-
-              <p className="text-sm font-semibold text-[#273B50] sm:text-[15px]">
-                {item}
-              </p>
-
-              <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">
-                Quantity remaining
-              </p>
-
+              <label className="text-xs font-semibold text-slate-500">
+                Status
+                <select
+                  value={current.status}
+                  onChange={(e) => updateInventory(item, "status", e.target.value as InventoryStatus)}
+                  className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 text-sm font-bold text-[#172A3F]"
+                >
+                  <option value="Sufficient">Sufficient</option>
+                  <option value="Restock">Restock</option>
+                  <option value="Out of stock">Out of stock</option>
+                </select>
+              </label>
             </div>
-
-            <div className="relative shrink-0">
-
-              <select
-                value={inventory[item] ?? 0}
-                onChange={(e) =>
-                  updateInventory(
-                    item,
-                    Number(e.target.value)
-                  )
-                }
-                className="h-11 w-[76px] appearance-none rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 pr-8 text-center text-sm font-bold text-[#172A3F] outline-none transition focus:border-[#2E7BBE] focus:ring-2 focus:ring-[#2E7BBE]/15"
-              >
-                {Array.from(
-                  { length: 21 },
-                  (_, i) => (
-                    <option
-                      key={i}
-                      value={i}
-                    >
-                      {i}
-                    </option>
-                  )
-                )}
-              </select>
-
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-
-            </div>
-
           </div>
+        );
+      })}
+    </div>
+  </section>
+);
 
-        ))}
 
+const renderCleanerSuppliesSection = () => (
+  <section className="overflow-hidden rounded-[26px] border border-emerald-100 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
+    <div className="flex items-center gap-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-5 sm:px-6">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+        <Sparkles className="h-6 w-6" />
       </div>
-
-    </section>
-  );
-
-  const renderCleanerSuppliesSection = () => (
-    <section className="overflow-hidden rounded-[26px] border border-emerald-100 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
-      <div className="flex items-center gap-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-5 sm:px-6">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
-          <Sparkles className="h-6 w-6" />
-        </div>
-
-        <div className="min-w-0">
-          <h2 className="text-lg font-bold text-[#172A3F] sm:text-xl">
-            Cleaner Supplies
-          </h2>
-          <p className="mt-0.5 text-xs leading-5 text-slate-500 sm:text-sm">
-            Cleaning products needed to complete the job
-          </p>
-        </div>
+      <div className="min-w-0">
+        <h2 className="text-lg font-bold text-[#172A3F] sm:text-xl">Cleaner Supplies</h2>
+        <p className="mt-0.5 text-xs leading-5 text-slate-500 sm:text-sm">
+          Cleaning products needed to complete the job
+        </p>
       </div>
+    </div>
 
-      <div className="divide-y divide-slate-100">
-        {cleanerSupplyItems.map((item) => {
-          const current = cleanerSupplies[item] ?? {
-            unit: "Bottle" as const,
-            quantity: 0,
-          };
+    <div className="divide-y divide-slate-100">
+      {cleanerSupplyItems.map((item) => {
+        const current: CleanerSupplyValue = cleanerSupplies[item] ?? {
+          quantity: 0,
+          unit: "Unit",
+          status: "Out of stock",
+        };
 
-          const quantityOptions =
-            current.unit === "Gallon"
-              ? [1, 2, 3, 4]
-              : [1, 2, 3, 4];
+        return (
+          <div key={item} className="flex flex-col gap-3 px-5 py-4 sm:px-6">
+            <p className="text-sm font-bold text-[#273B50]">{item}</p>
 
-          return (
-            <div
-              key={item}
-              className="flex min-h-[84px] flex-col justify-center gap-3 px-5 py-4 sm:min-h-[78px] sm:flex-row sm:items-center sm:justify-between sm:px-6"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-[#273B50] sm:text-[15px]">
-                  {item}
-                </p>
-                <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">
-                  Select package type and quantity
-                </p>
-              </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <label className="text-xs font-semibold text-slate-500">
+                Quantity
+                <select
+                  value={current.quantity}
+                  onChange={(e) => updateCleanerSupply(item, "quantity", Number(e.target.value))}
+                  className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 text-sm font-bold text-[#172A3F]"
+                >
+                  {Array.from({ length: 21 }, (_, i) => (
+                    <option key={i} value={i}>{i}</option>
+                  ))}
+                </select>
+              </label>
 
-              <div className="flex shrink-0 items-center gap-2">
-                <div className="relative">
-                  <select
-                    value={current.unit}
-                    onChange={(e) =>
-                      updateCleanerSupply(
-                        item,
-                        "unit",
-                        e.target.value as "Gallon" | "Bottle"
-                      )
-                    }
-                    className="h-10 w-[105px] appearance-none rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 pr-8 text-xs font-bold text-[#172A3F] outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15"
-                  >
-                    <option value="Bottle">Bottle</option>
-                    <option value="Gallon">Gallon</option>
-                  </select>
+              <label className="text-xs font-semibold text-slate-500">
+                Unit
+                <select
+                  value={current.unit}
+                  onChange={(e) => updateCleanerSupply(item, "unit", e.target.value as InventoryUnit)}
+                  className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 text-sm font-bold text-[#172A3F]"
+                >
+                  <option value="Box">Box</option>
+                  <option value="Unit">Unit</option>
+                </select>
+              </label>
 
-                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={current.quantity}
-                    onChange={(e) =>
-                      updateCleanerSupply(
-                        item,
-                        "quantity",
-                        Number(e.target.value)
-                      )
-                    }
-                    className="h-10 w-[72px] appearance-none rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 pr-8 text-center text-xs font-bold text-[#172A3F] outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15"
-                  >
-                    <option value={0}>0</option>
-                    {quantityOptions.map((quantity) => (
-                      <option key={quantity} value={quantity}>
-                        {quantity}
-                      </option>
-                    ))}
-                  </select>
-
-                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                </div>
-              </div>
+              <label className="text-xs font-semibold text-slate-500">
+                Status
+                <select
+                  value={current.status}
+                  onChange={(e) => updateCleanerSupply(item, "status", e.target.value as InventoryStatus)}
+                  className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 text-sm font-bold text-[#172A3F]"
+                >
+                  <option value="Sufficient">Sufficient</option>
+                  <option value="Restock">Restock</option>
+                  <option value="Out of stock">Out of stock</option>
+                </select>
+              </label>
             </div>
-          );
-        })}
-      </div>
-    </section>
-  );
+          </div>
+        );
+      })}
+    </div>
+  </section>
+);
 
   return (
     <main className="min-h-screen bg-[#F4F8FC] text-[#14263A]">

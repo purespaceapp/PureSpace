@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import AIAssistantButton from "@/app/components/AIAssistantButton";
 
 import { usePathname, useRouter } from "next/navigation";
 
@@ -200,6 +201,7 @@ export default function DashboardLayout({
       <main className="min-w-0 flex-1 overflow-y-auto">
         {children}
       </main>
+      <AIAssistantButton />
     </div>
   );
 }

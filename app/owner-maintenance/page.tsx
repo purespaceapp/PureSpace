@@ -38,9 +38,9 @@ export default function OwnerMaintenancePage() {
 
         const maintenanceData = await getMaintenanceIssues();
 
-        const ownerPropertyIds = propertyData.map(
-          (property) => Number(property.id)
-        );
+       const ownerPropertyIds = propertyData.map(
+  (property: { id: number | string }) => Number(property.id)
+);
 
         const ownerIssues = maintenanceData.filter((issue: any) =>
           ownerPropertyIds.includes(Number(issue.property_id))

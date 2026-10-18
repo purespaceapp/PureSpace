@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   Bath,
@@ -11,16 +12,22 @@ import {
   StickyNote,
 } from "lucide-react";
 
-type CleanerSupplyValue = {
-  unit: "Gallon" | "Bottle";
+type InventoryUnit = "Box" | "Unit";
+type InventoryStatus = "Sufficient" | "Restock" | "Out of stock";
+
+type InventoryValue = {
   quantity: number;
+  unit: InventoryUnit;
+  status: InventoryStatus;
 };
+
+type CleanerSupplyValue = InventoryValue;
 
 type InventoryShareCardProps = {
   property: string;
   cleaner: string;
   date: string;
-  inventory: Record<string, number>;
+  inventory: Record<string, InventoryValue>;
   cleanerSupplies?: Record<string, CleanerSupplyValue>;
   notes: string;
 };
@@ -73,6 +80,18 @@ const sections = [
 
 const cleanerSupplyItems = ["WINDEX", "LYSOL", "CLOROX", "PINESOL", "VIM CREAM"];
 
+const defaultValue: InventoryValue = {
+  quantity: 0,
+  unit: "Unit",
+  status: "Out of stock",
+};
+
+const statusStyles: Record<InventoryStatus, string> = {
+  Sufficient: "bg-emerald-100 text-emerald-800",
+  Restock: "bg-amber-100 text-amber-800",
+  "Out of stock": "bg-red-100 text-red-800",
+};
+
 function InventorySection({
   title,
   description,
@@ -88,7 +107,7 @@ function InventorySection({
   iconBg: string;
   iconColor: string;
   items: string[];
-  inventory: Record<string, number>;
+  inventory: Record<string, InventoryValue>;
 }) {
   return (
     <section className="overflow-hidden rounded-[24px] border border-slate-100 bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]">
@@ -103,26 +122,27 @@ function InventorySection({
       </div>
 
       <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-        <div className="divide-y divide-slate-100">
-          {items.filter((_, index) => index % 2 === 0).map((item) => (
-            <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
-              <span className="text-xs font-semibold text-slate-600">{item}</span>
-              <span className="min-w-[34px] rounded-full bg-[#EEF6FF] px-2.5 py-1 text-center text-xs font-extrabold text-[#2E7BBE]">
-                {inventory[item] ?? 0}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="divide-y divide-slate-100">
-          {items.filter((_, index) => index % 2 === 1).map((item) => (
-            <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
-              <span className="text-xs font-semibold text-slate-600">{item}</span>
-              <span className="min-w-[34px] rounded-full bg-[#EEF6FF] px-2.5 py-1 text-center text-xs font-extrabold text-[#2E7BBE]">
-                {inventory[item] ?? 0}
-              </span>
-            </div>
-          ))}
-        </div>
+        {[0, 1].map((column) => (
+          <div key={column} className="divide-y divide-slate-100">
+            {items.filter((_, index) => index % 2 === column).map((item) => {
+              const value = inventory[item] ?? defaultValue;
+
+              return (
+                <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <span className="text-xs font-semibold text-slate-600">{item}</span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="rounded-full bg-[#EEF6FF] px-2.5 py-1 text-xs font-extrabold text-[#2E7BBE]">
+                      {value.quantity} {value.unit}
+                    </span>
+                    <span className={`rounded-full px-2 py-1 text-[9px] font-bold ${statusStyles[value.status]}`}>
+                      {value.status}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -190,33 +210,29 @@ export default function InventoryShareCard({
               <p className="mt-0.5 text-[10px] text-slate-400">Products carried by the cleaner</p>
             </div>
           </div>
+
           <div className="grid grid-cols-2 divide-x divide-slate-100">
-            <div className="divide-y divide-slate-100">
-              {cleanerSupplyItems.filter((_, index) => index % 2 === 0).map((item) => {
-                const value = cleanerSupplies[item] ?? { unit: "Bottle", quantity: 0 };
-                return (
-                  <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
-                    <span className="text-xs font-semibold text-slate-600">{item}</span>
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">
-                      {value.quantity} {value.unit}{value.quantity === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="divide-y divide-slate-100">
-              {cleanerSupplyItems.filter((_, index) => index % 2 === 1).map((item) => {
-                const value = cleanerSupplies[item] ?? { unit: "Bottle", quantity: 0 };
-                return (
-                  <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
-                    <span className="text-xs font-semibold text-slate-600">{item}</span>
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">
-                      {value.quantity} {value.unit}{value.quantity === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            {[0, 1].map((column) => (
+              <div key={column} className="divide-y divide-slate-100">
+                {cleanerSupplyItems.filter((_, index) => index % 2 === column).map((item) => {
+                  const value = cleanerSupplies[item] ?? defaultValue;
+
+                  return (
+                    <div key={item} className="flex items-center justify-between gap-3 px-5 py-3">
+                      <span className="text-xs font-semibold text-slate-600">{item}</span>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">
+                          {value.quantity} {value.unit}
+                        </span>
+                        <span className={`rounded-full px-2 py-1 text-[9px] font-bold ${statusStyles[value.status]}`}>
+                          {value.status}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </section>
 

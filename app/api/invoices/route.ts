@@ -652,14 +652,46 @@ const totalDue = subtotal + hstAmount;
         .order("owner_id", {
           ascending: true,
         });
+if (error) throw error;
 
-      if (error) throw error;
+const invoices = data ?? [];
 
-      const invoices = data ?? [];
+const invoiceIds = invoices.map((invoice) => invoice.id);
 
-      const grouped = new Map<string, any>();
+let invoiceItems: any[] = [];
 
-      for (const invoice of invoices) {
+if (invoiceIds.length > 0) {
+  const { data: items, error: itemsError } =
+    await supabaseAdmin
+      .from("invoice_items")
+      .select("*")
+      .in("invoice_id", invoiceIds)
+      .order("item_date", { ascending: true })
+      .order("id", { ascending: true });
+
+  if (itemsError) throw itemsError;
+
+  invoiceItems = items ?? [];
+}
+
+const itemsByInvoice = new Map<number, any[]>();
+
+for (const item of invoiceItems) {
+  const invoiceId = Number(item.invoice_id);
+  const currentItems = itemsByInvoice.get(invoiceId) ?? [];
+
+  currentItems.push(item);
+  itemsByInvoice.set(invoiceId, currentItems);
+}
+
+const invoicesWithItems = invoices.map((invoice) => ({
+  ...invoice,
+  items: itemsByInvoice.get(Number(invoice.id)) ?? [],
+}));
+
+const grouped = new Map<string, any>();
+
+     for (const invoice of invoicesWithItems) {
         const key = [
           invoice.owner_id,
           invoice.period_start,

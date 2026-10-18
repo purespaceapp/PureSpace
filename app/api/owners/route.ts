@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+import {
+  requireOfficeSession,
+  requireOwnerSession,
+} from "@/lib/auth/authorization";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { action } = body;
 
     if (action === "list") {
+      const session = await requireOfficeSession();
+
+if (!session) {
+  return NextResponse.json(
+    { success: false },
+    { status: 401 }
+  );
+}
       const { data, error } = await supabaseAdmin
         .from("owners")
         .select(`
@@ -36,6 +49,38 @@ export async function POST(request: Request) {
     }
 
     if (action === "accept-terms") {
+      const officeSession = await requireOfficeSession();
+const ownerSession = officeSession
+  ? null
+  : await requireOwnerSession();
+
+if (!officeSession && !ownerSession) {
+  return NextResponse.json(
+    { success: false },
+    { status: 401 }
+  );
+}
+
+const ownerId = ownerSession
+  ? ownerSession.ownerId
+  : Number(body.ownerId);
+
+if (!Number.isSafeInteger(ownerId) || ownerId <= 0) {
+  return NextResponse.json(
+    { success: false },
+    { status: 400 }
+  );
+}
+
+if (
+  typeof body.termsVersion !== "string" ||
+  !body.termsVersion.trim()
+) {
+  return NextResponse.json(
+    { success: false },
+    { status: 400 }
+  );
+}
       const { data, error } = await supabaseAdmin
         .from("owners")
         .update({
@@ -43,7 +88,7 @@ export async function POST(request: Request) {
           terms_accepted_at: new Date().toISOString(),
           terms_version: body.termsVersion,
         })
-        .eq("id", Number(body.ownerId))
+        .eq("id", ownerId)
         .select(`
           id,
           name,
