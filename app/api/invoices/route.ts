@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { generateInvoicesForPeriod } from "@/lib/generateInvoices";
+import { requireOwnerSession } from "@/lib/auth/authorization";
 
 export async function POST(request: Request) {
   try {
@@ -513,17 +514,14 @@ const totalDue = subtotal + hstAmount;
     // ==========================================
 
     if (action === "list-owner") {
-      const ownerId = Number(body.ownerId);
-
-      if (!ownerId) {
+      const session = await requireOwnerSession();
+      if (!session) {
         return NextResponse.json(
-          {
-            success: false,
-            error: "Missing owner ID",
-          },
-          { status: 400 }
+          { success: false, error: "Unauthorized" },
+          { status: 401 }
         );
       }
+      const ownerId = session.ownerId;
 
       const { data, error } = await supabaseAdmin
         .from("invoices")
@@ -556,15 +554,19 @@ const totalDue = subtotal + hstAmount;
     // ==========================================
 
   if (action === "get") {
-  const invoiceId = Number(body.invoiceId);
-  const ownerId = Number(body.ownerId);
-
-  if (!invoiceId || !ownerId) {
+      const session = await requireOwnerSession();
+      if (!session) {
         return NextResponse.json(
-          {
-            success: false,
-            error: "Missing invoice ID",
-          },
+          { success: false, error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+      const invoiceId = Number(body.invoiceId);
+      const ownerId = session.ownerId;
+
+      if (!Number.isSafeInteger(invoiceId) || invoiceId <= 0) {
+        return NextResponse.json(
+          { success: false, error: "Missing invoice ID" },
           { status: 400 }
         );
       }
@@ -587,7 +589,7 @@ const totalDue = subtotal + hstAmount;
             )
           `)
          .eq("id", invoiceId)
-.eq("owner_id", ownerId)
+          .eq("owner_id", ownerId)
           .maybeSingle();
 
       if (invoiceError) throw invoiceError;

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import {
   getOwnerInvoices,
+  getInvoice,
   type Invoice,
 } from "@/lib/invoices";
 import { downloadHistoricalOwnerInvoice } from "@/lib/ownerHistoricalInvoice";
@@ -142,19 +143,28 @@ export default function OwnerInvoicesPage() {
 
   async function handleDownload(invoice: Invoice) {
     try {
+      const fullInvoice = await getInvoice(invoice.id);
+
+      if (!fullInvoice) {
+        throw new Error("Invoice details were not found.");
+      }
+
       await downloadHistoricalOwnerInvoice({
-        invoice_number: invoice.invoice_number,
-        property_name: invoice.property_name,
-        property_address: invoice.property_address,
-        period_start: invoice.period_start,
-        period_end: invoice.period_end,
-        total_cleaning: Number(invoice.total_cleaning || 0),
-        total_expenses: Number(invoice.total_expenses || 0),
-        total_due: Number(invoice.total_due || 0),
-        hst_enabled: Boolean(invoice.hst_enabled),
+        invoice_number: fullInvoice.invoice_number,
+        property_name: fullInvoice.property_name,
+        property_address: fullInvoice.property_address,
+        owner_name: fullInvoice.owners?.name ?? null,
+        period_start: fullInvoice.period_start,
+        period_end: fullInvoice.period_end,
+        total_cleaning: Number(fullInvoice.total_cleaning || 0),
+        total_expenses: Number(fullInvoice.total_expenses || 0),
+        total_due: Number(fullInvoice.total_due || 0),
+        hst_enabled: Boolean(fullInvoice.hst_enabled),
+        items: fullInvoice.items ?? [],
       });
     } catch (error) {
       console.error("Failed to download invoice PDF:", error);
+      window.alert("Unable to download this invoice. Please try again.");
     }
   }
 

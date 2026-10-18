@@ -22,6 +22,12 @@ type HistoricalOwnerInvoice = {
   total_expenses: number;
   total_due: number;
   hst_enabled: boolean;
+  items?: Array<{
+    item_type: string;
+    item_date?: string | null;
+    description: string;
+    amount: number;
+  }>;
 };
 
 const BLUE = [45, 149, 213] as const;
@@ -507,6 +513,109 @@ export async function downloadHistoricalOwnerInvoice(
   // This invoice is intentionally designed to fit on one page.
   // All sections are compact so there is no artificial blank page.
   drawFooter(1, 1);
+
+  // Detailed cleaning records are placed on separate pages so the
+  // original invoice summary and totals remain unchanged.
+  const cleaningItems = (invoice.items ?? [])
+    .filter((item) => item.item_type?.toLowerCase() === "cleaning")
+    .slice()
+    .sort((a, b) =>
+      String(a.item_date ?? "").localeCompare(String(b.item_date ?? ""))
+    );
+
+  if (cleaningItems.length > 0) {
+    const rowsPerPage = 22;
+    const totalDetailPages = Math.ceil(cleaningItems.length / rowsPerPage);
+
+    for (let pageIndex = 0; pageIndex < totalDetailPages; pageIndex++) {
+      doc.addPage();
+
+      const detailRows = cleaningItems.slice(
+        pageIndex * rowsPerPage,
+        (pageIndex + 1) * rowsPerPage
+      );
+
+      let detailY = 22;
+
+      setFont(16, NAVY, "bold");
+      doc.text("Cleaning Details", margin, detailY);
+
+      detailY += 8;
+      setFont(8, MUTED);
+      doc.text(
+        `Invoice ${cleanText(invoice.invoice_number)} | ${cleanText(invoice.property_name)}`,
+        margin,
+        detailY
+      );
+
+      detailY += 5;
+      setFont(8, MUTED);
+      doc.text(
+        `${formatDate(invoice.period_start)} – ${formatDate(invoice.period_end)}`,
+        margin,
+        detailY
+      );
+
+      detailY += 10;
+      doc.setFillColor(...SOFT_BLUE);
+      doc.roundedRect(margin, detailY, contentWidth, 10, 2, 2, "F");
+
+      setFont(7.5, NAVY, "bold");
+      doc.text("DATE", margin + 4, detailY + 6.5);
+      doc.text("DESCRIPTION", margin + 42, detailY + 6.5);
+      doc.text("AMOUNT", pageWidth - margin - 4, detailY + 6.5, {
+        align: "right",
+      });
+
+      detailY += 15;
+
+      detailRows.forEach((item, rowIndex) => {
+        const dateText = item.item_date
+          ? formatDate(item.item_date)
+          : "Date not recorded";
+
+        const description = cleanText(item.description) || "Cleaning service";
+        const descriptionLines = doc.splitTextToSize(description, 85);
+        const rowHeight = Math.max(9, descriptionLines.length * 4 + 3);
+
+        if (rowIndex % 2 === 1) {
+          doc.setFillColor(...SOFT_BLUE);
+          doc.rect(margin, detailY - 4, contentWidth, rowHeight, "F");
+        }
+
+        setFont(7.5, TEXT);
+        doc.text(dateText, margin + 4, detailY);
+
+        doc.text(descriptionLines, margin + 42, detailY);
+
+        setFont(7.5, NAVY, "bold");
+        doc.text(
+          money(item.amount),
+          pageWidth - margin - 4,
+          detailY,
+          { align: "right" }
+        );
+
+        detailY += rowHeight;
+
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.2);
+        doc.line(margin, detailY, pageWidth - margin, detailY);
+
+        detailY += 2;
+      });
+
+      const detailFooterY = pageHeight - 12;
+      setFont(7, MUTED);
+      doc.text(
+        `Page ${pageIndex + 2} of ${totalDetailPages + 1}`,
+        pageWidth - margin,
+        detailFooterY,
+        { align: "right" }
+      );
+      doc.text("PureSpace Cleaning", margin, detailFooterY);
+    }
+  }
 
   const safePropertyName =
     cleanText(invoice.property_name)
