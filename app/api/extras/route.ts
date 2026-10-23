@@ -1,10 +1,60 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireOfficeSession } from "@/lib/auth/authorization";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { action } = body;
+
+    if (action === "create") {
+      const officeSession = await requireOfficeSession();
+
+      if (!officeSession) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      const ownerPrice = Number(body.owner_price);
+      const cleanerPrice = Number(body.cleaner_price);
+
+      if (
+        !name ||
+        !Number.isFinite(ownerPrice) ||
+        ownerPrice < 0 ||
+        !Number.isFinite(cleanerPrice) ||
+        cleanerPrice < 0
+      ) {
+        return NextResponse.json(
+          { success: false, error: "Invalid extra details" },
+          { status: 400 }
+        );
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("extras")
+        .insert({
+          name,
+          owner_price: ownerPrice,
+          cleaner_price: cleanerPrice,
+          per_hour: Boolean(body.per_hour),
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("Create extra error:", error);
+        return NextResponse.json(
+          { success: false, error: "Unable to create extra" },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ success: true, data });
+    }
 
     if (action === "list") {
       const { data, error } = await supabaseAdmin

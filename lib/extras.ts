@@ -28,6 +28,15 @@ async function extrasRequest(
   return result.data;
 }
 
+export async function createExtra(extra: {
+  name: string;
+  owner_price: number;
+  cleaner_price: number;
+  per_hour: boolean;
+}) {
+  return await extrasRequest("create", extra);
+}
+
 export async function getExtras() {
   return (await extrasRequest("list")) ?? [];
 }

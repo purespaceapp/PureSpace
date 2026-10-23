@@ -88,40 +88,28 @@ export default function CleanerPage() {
     0
   );
 
-  const cleaningTotal = jobs.reduce(
-    (sum, job) => sum + Number(job.cleaner_pay),
+  const isCompleted = (job: any) =>
+    String(job?.status ?? "").trim().toLowerCase() === "completed";
+
+  const completedJobs = jobs.filter(isCompleted);
+
+  const cleaningTotal = completedJobs.reduce(
+    (sum, job) => sum + Number(job.cleaner_pay ?? 0),
     0
   );
 
   const grandTotal = cleaningTotal + receiptTotal;
 
-  const totalExtras = jobs.reduce((sum, job) => {
-    return (
-      sum +
-      (job.extras || []).reduce((extraSum: number, extra: any) => {
-        const cleanerExtra =
-          extra.extra_id === 1
-            ? 16
-            : extra.extra_id === 2
-              ? 18
-              : extra.extra_id === 3
-                ? 25
-                : extra.extra_id === 4
-                  ? 10
-                  : extra.extra_id === 5
-                    ? 15
-                    : extra.extra_id === 6
-                      ? 15
-                      : extra.extra_id === 7
-                        ? 18
-                        : extra.extra_id === 8
-                          ? 18
-                          : 0;
-
-        return extraSum + cleanerExtra * Number(extra.quantity || 0);
-      }, 0)
-    );
-  }, [jobs]);
+  const totalExtras = completedJobs.reduce((sum, job) => {
+    return sum + (job.extras || []).reduce((extraSum: number, extra: any) => {
+      const prices: Record<number, number> = {
+        1: 16, 2: 18, 3: 25, 4: 10,
+        5: 15, 6: 15, 7: 18, 8: 18,
+      };
+      const price = prices[Number(extra.extra_id)] || 0;
+      return extraSum + price * Number(extra.quantity || 0);
+    }, 0);
+  }, 0);
 
   const jobsByDate = useMemo(() => {
     const grouped: Record<string, any[]> = {};
