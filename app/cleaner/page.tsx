@@ -220,34 +220,22 @@ export default function CleanerPage() {
   };
 
   const getJobTotal = (job: any): number => {
+  if (!isCompleted(job)) return 0;
+
   const base = Number(job?.cleaner_pay ?? 0);
 
-  const extrasTotal = Array.isArray(job?.extras)
-    ? job.extras.reduce((sum: number, extra: any) => {
-        const extraPrice = Number(
-          getCleanerExtra(Number(extra?.extra_id ?? 0)) ?? 0
-        );
+  const receiptsTotal = approvedReceipts
+    .filter(
+      (receipt: any) =>
+        Number(receipt?.schedule_id) === Number(job?.id)
+    )
+    .reduce(
+      (sum: number, receipt: any) =>
+        sum + Number(receipt?.amount ?? 0),
+      0
+    );
 
-        const quantity = Number(extra?.quantity ?? 0);
-
-        return sum + extraPrice * quantity;
-      }, 0)
-    : 0;
-
-  const receiptsTotal = Array.isArray(approvedReceipts)
-    ? approvedReceipts
-        .filter(
-          (receipt: any) =>
-            Number(receipt?.schedule_id) === Number(job?.id)
-        )
-        .reduce(
-          (sum: number, receipt: any) =>
-            sum + Number(receipt?.amount ?? 0),
-          0
-        )
-    : 0;
-
-  return Number(base + extrasTotal + receiptsTotal) || 0;
+  return base + receiptsTotal;
 };
 
 const getDayTotal = (dayJobs: any[]): number => {
