@@ -11,6 +11,18 @@ async function getLogo() {
   });
 }
 
+type OfficeInvoiceItem = {
+  id?: number | string;
+  item_type?: string | null;
+  schedule_id?: number | null;
+  receipt_id?: number | null;
+  item_date?: string | null;
+  description?: string | null;
+  quantity?: number | null;
+  unit_price?: number | null;
+  amount?: number | null;
+};
+
 type OfficeInvoiceProperty = {
   property_name: string;
   property_address?: string | null;
@@ -19,6 +31,7 @@ type OfficeInvoiceProperty = {
   total_expenses: number;
   total_due: number;
   hst_enabled?: boolean;
+  items?: OfficeInvoiceItem[];
 };
 
 type OfficeInvoiceData = {
@@ -238,10 +251,100 @@ export async function downloadOfficeInvoice(
 
     return startY + height;
   };
+    // Each cleaning item already contains the full charge for that cleaning,
+  // including any extras. Separate extra item rows are not displayed as payable
+  // rows because that could count those extras twice.
+  const getPropertyRows = (property: OfficeInvoiceProperty) => {
+    const items = Array.isArray(property.items) ? property.items : [];
+    const cleaning = Number(property.total_cleaning || 0);
+    const expenses = Number(property.total_expenses || 0);
+
+    const cleaningItems = items.filter(
+      (item) => String(item.item_type || "").toLowerCase() === "cleaning"
+    );
+    const expenseItems = items.filter(
+      (item) => String(item.item_type || "").toLowerCase() === "expense"
+    );
+
+    const rows: Array<{
+      label: string;
+      amount: number;
+      kind: "cleaning" | "expense";
+    }> = [];
+
+    if (cleaningItems.length > 0) {
+      for (const item of cleaningItems) {
+        const date = item.item_date
+          ? formatDate(item.item_date)
+          : "Date not available";
+
+        const description =
+          cleanText(item.description) || "Regular Cleaning";
+
+        rows.push({
+          label: `${date} — ${description}`,
+          amount: Number(item.amount ?? item.unit_price ?? 0),
+          kind: "cleaning",
+        });
+      }
+    } else {
+      // Backward-compatible fallback for older invoices without itemized rows.
+      rows.push({
+        label: "Cleaning services",
+        amount: cleaning,
+        kind: "cleaning",
+      });
+    }
+
+    const expenseItemsTotal = expenseItems.reduce(
+      (sum, item) => sum + Number(item.amount ?? 0),
+      0
+    );
+
+    // Use receipt-level rows only if they match the saved invoice expense total.
+    if (
+      expenses > 0 &&
+      expenseItems.length > 0 &&
+      Math.abs(expenseItemsTotal - expenses) < 0.02
+    ) {
+      for (const item of expenseItems) {
+        const date = item.item_date
+          ? `${formatDate(item.item_date)} — `
+          : "";
+
+        rows.push({
+          label: `${date}${
+            cleanText(item.description) || "Approved property expense"
+          }`,
+          amount: Number(item.amount ?? 0),
+          kind: "expense",
+        });
+      }
+    } else if (expenses > 0) {
+      rows.push({
+        label: "Approved property expenses",
+        amount: expenses,
+        kind: "expense",
+      });
+    }
+
+    return rows;
+  };
 
   const propertyCardHeight = (property: OfficeInvoiceProperty) => {
+    const rowCount = getPropertyRows(property).length;
+    const cleaning = Number(property.total_cleaning || 0);
     const expenses = Number(property.total_expenses || 0);
-    return expenses > 0 ? 54 : 45;
+    const totalDue = Number(property.total_due || 0);
+
+    const hasHst =
+      Boolean(property.hst_enabled) &&
+      totalDue > cleaning + expenses + 0.005;
+
+    return Math.max(
+      45,
+      30 + (rowCount + (hasHst ? 1 : 0)) * 6.2 + 15
+    );
   };
 
   const drawPropertyCard = (
@@ -253,15 +356,15 @@ export async function downloadOfficeInvoice(
     const expenses = Number(property.total_expenses || 0);
     const totalDue = Number(property.total_due || 0);
     const subtotal = cleaning + expenses;
+
     const hstAmount = property.hst_enabled
       ? Math.max(0, totalDue - subtotal)
       : 0;
 
+    const rows = getPropertyRows(property);
     const height = propertyCardHeight(property);
 
     outlinedBox(margin, startY, contentWidth, height);
-
-    // Property heading
     roundedBox(
       margin + 0.8,
       startY + 0.8,
@@ -295,57 +398,50 @@ export async function downloadOfficeInvoice(
       startY + 21
     );
 
-    // Compact charge rows
     let rowY = startY + 30;
+    const rowStep = 6.2;
 
-    setFont(7.7, TEXT);
-    doc.text("Cleaning services", margin + 7, rowY);
+    for (const row of rows) {
+      const maxLabelWidth = contentWidth - 37;
 
-    setFont(7.7, NAVY, "bold");
-    doc.text(
-      money(cleaning),
-      pageWidth - margin - 7,
-      rowY,
-      { align: "right" }
-    );
+      const labelLines = doc.splitTextToSize(
+        row.label,
+        maxLabelWidth
+      ) as string[];
 
-    rowY += 8;
+      const displayLines = labelLines.slice(0, 2);
 
-    if (expenses > 0) {
-      setFont(7.7, TEXT);
-      doc.text(
-        "Approved property expenses",
-        margin + 7,
-        rowY
+      setFont(
+        7.1,
+        row.kind === "expense" ? TEXT : MUTED
       );
 
-      setFont(7.7, NAVY, "bold");
+      doc.text(displayLines, margin + 7, rowY);
+
+      setFont(7.3, NAVY, "bold");
       doc.text(
-        money(expenses),
+        money(row.amount),
         pageWidth - margin - 7,
         rowY,
         { align: "right" }
       );
 
-      rowY += 8;
+      rowY += rowStep * Math.max(1, displayLines.length);
     }
 
     if (hstAmount > 0) {
-      setFont(7.7, MUTED);
+      setFont(7.2, MUTED);
       doc.text("HST (13%)", margin + 7, rowY);
 
-      setFont(7.7, TEXT, "bold");
+      setFont(7.3, TEXT, "bold");
       doc.text(
         money(hstAmount),
         pageWidth - margin - 7,
         rowY,
         { align: "right" }
       );
-
-      rowY += 8;
     }
 
-    // Total strip
     const totalStripY = startY + height - 13;
 
     doc.setFillColor(...SOFT_TEAL);
@@ -382,6 +478,7 @@ export async function downloadOfficeInvoice(
       sum.cleaning += Number(property.total_cleaning || 0);
       sum.expenses += Number(property.total_expenses || 0);
       sum.due += Number(property.total_due || 0);
+
       return sum;
     },
     { cleaning: 0, expenses: 0, due: 0 }
@@ -392,6 +489,7 @@ export async function downloadOfficeInvoice(
 
   // Build page content into pages while avoiding forced blank space.
   const propertyGroups: OfficeInvoiceProperty[][] = [];
+
   let currentGroup: OfficeInvoiceProperty[] = [];
   let currentHeight = 0;
 
@@ -439,6 +537,7 @@ export async function downloadOfficeInvoice(
     }
 
     setFont(6.8, BLUE, "bold");
+
     doc.text(
       pageIndex === 0
         ? "PROPERTY INVOICES"
@@ -545,7 +644,7 @@ export async function downloadOfficeInvoice(
           summaryY += 7.5;
         });
       } else {
-        // Rare case: move summary to a new page rather than leaving
+                // Rare case: move summary to a new page rather than leaving
         // an awkward oversized gap.
         doc.addPage();
         drawHeader();
