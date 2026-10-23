@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createExtra, getExtras } from "@/lib/extras";
+import { createExtra, getExtras, updateExtra } from "@/lib/extras";
 
 type Extra = {
   id: number;
@@ -18,6 +18,7 @@ export default function ExtrasPricingPage() {
   const [cleanerPrice, setCleanerPrice] = useState("");
   const [perHour, setPerHour] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
 
   async function loadExtras() {
@@ -59,6 +60,47 @@ export default function ExtrasPricingPage() {
     }
   }
 
+  async function saveExtraHandler(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+
+    try {
+      const values = {
+        name: name.trim(),
+        owner_price: Number(ownerPrice),
+        cleaner_price: Number(cleanerPrice),
+        per_hour: perHour,
+      };
+
+      if (editingId !== null) {
+        await updateExtra({ id: editingId, ...values });
+        setMessage("Extra updated successfully.");
+      } else {
+        await createExtra(values);
+        setMessage("Extra created successfully.");
+      }
+
+      setEditingId(null);
+      setName("");
+      setOwnerPrice("");
+      setCleanerPrice("");
+      setPerHour(false);
+      await loadExtras();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not save extra.");
+    }
+  }
+
+  function editExtra(extra: Extra) {
+    setEditingId(extra.id);
+    setName(extra.name);
+    setOwnerPrice(String(extra.owner_price));
+    setCleanerPrice(String(extra.cleaner_price));
+    setPerHour(Boolean(extra.per_hour));
+    setMessage("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   return (
     <main className="min-h-screen bg-[#F4F7FB] px-5 py-8 text-[#14213D] md:px-8">
       <div className="mx-auto max-w-5xl">
@@ -77,8 +119,10 @@ export default function ExtrasPricingPage() {
         </header>
 
         <section className="mt-8 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold">Create a custom extra</h2>
-          <form onSubmit={createExtraHandler} className="mt-5 grid gap-4 sm:grid-cols-2">
+          <h2 className="text-xl font-bold">
+            {editingId !== null ? "Edit extra" : "Create a custom extra"}
+          </h2>
+          <form onSubmit={saveExtraHandler} className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-semibold">
               Extra name
               <input
@@ -130,7 +174,7 @@ export default function ExtrasPricingPage() {
               type="submit"
               className="rounded-xl bg-[#2E7BBE] px-5 py-3 font-bold text-white sm:col-span-2"
             >
-              Save extra
+              {editingId !== null ? "Save changes" : "Save extra"}
             </button>
           </form>
 
@@ -160,9 +204,18 @@ export default function ExtrasPricingPage() {
                       {extra.per_hour ? "Per hour" : "Fixed price"}
                     </p>
                   </div>
-                  <div className="text-sm sm:text-right">
-                    <p>Customer: ${Number(extra.owner_price).toFixed(2)}</p>
-                    <p>Cleaner: ${Number(extra.cleaner_price).toFixed(2)}</p>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="text-sm sm:text-right">
+                      <p>Customer: ${Number(extra.owner_price).toFixed(2)}</p>
+                      <p>Cleaner: ${Number(extra.cleaner_price).toFixed(2)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => editExtra(extra)}
+                      className="rounded-xl border border-[#2E7BBE] px-4 py-2 text-sm font-bold text-[#2E7BBE] hover:bg-[#EAF4FE]"
+                    >
+                      Edit
+                    </button>
                   </div>
                 </div>
               ))}
