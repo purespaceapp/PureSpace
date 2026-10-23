@@ -1,3 +1,4 @@
+
 async function extrasRequest(
   action: string,
   body: Record<string, any> = {}
@@ -58,8 +59,6 @@ export async function saveScheduleExtras(
     quantity: number;
   }[]
 ) {
-  if (extras.length === 0) return;
-
   return await extrasRequest(
     "save-schedule-extras",
     {

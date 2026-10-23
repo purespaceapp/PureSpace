@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { generateInvoicesForPeriod } from "@/lib/generateInvoices";
-import { requireOwnerSession } from "@/lib/auth/authorization";
+import { requireOfficeSession, requireOwnerSession } from "@/lib/auth/authorization";
 
 export async function POST(request: Request) {
   try {
@@ -116,25 +116,70 @@ export async function POST(request: Request) {
         data: updatedInvoice,
       });
     }
-        if (action === "create-period") {
-      if (!body.start || !body.end) {
+    if (action === "create-period") {
+      const officeSession = await requireOfficeSession();
+
+      if (!officeSession) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+
+      const isValidDate = (value: unknown): value is string => {
+        if (
+          typeof value !== "string" ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(value)
+        ) {
+          return false;
+        }
+
+        const date = new Date(`${value}T00:00:00.000Z`);
+
+        return (
+          !Number.isNaN(date.getTime()) &&
+          date.toISOString().slice(0, 10) === value
+        );
+      };
+
+      if (
+        !isValidDate(body.start) ||
+        !isValidDate(body.end) ||
+        body.start > body.end
+      ) {
         return NextResponse.json(
           {
             success: false,
-            error: "Billing period start and end are required",
+            error: "Valid start and end dates are required.",
           },
           { status: 400 }
         );
       }
+
+
+const { data: hstSetting, error: hstError } = await supabaseAdmin
+  .from("app_settings")
+  .select("value")
+  .eq("key", "hst_enabled")
+  .single();
+
+if (hstError) {
+  throw hstError;
+}
+
+const hstEnabled = hstSetting?.value === "true";
+
 const invoices = await generateInvoicesForPeriod({
   start: body.start,
   end: body.end,
+  hstEnabled,
 });
 
-      return NextResponse.json({
-        success: true,
-        data: invoices,
-      });
+return NextResponse.json({
+  success: true,
+  data: invoices,
+});
+
     }
 // ==========================================
 // ACTIVE PERIOD HST

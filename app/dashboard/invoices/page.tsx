@@ -71,7 +71,14 @@ export default function OfficeInvoicesPage() {
 
   const [search, setSearch] =
     useState("");
+const [customStart, setCustomStart] =
+  useState("");
 
+const [customEnd, setCustomEnd] =
+  useState("");
+
+const [generatingPeriod, setGeneratingPeriod] =
+  useState(false);
   const [savingInvoiceId, setSavingInvoiceId] =
     useState<number | null>(null);
 
@@ -97,6 +104,63 @@ export default function OfficeInvoicesPage() {
       setLoading(false);
     }
   }
+
+async function handleGenerateCustomPeriod() {
+  if (!customStart || !customEnd) {
+    alert("Please select both start and end dates.");
+    return;
+  }
+
+  if (customStart > customEnd) {
+    alert("The start date cannot be after the end date.");
+    return;
+  }
+
+  if (generatingPeriod) return;
+
+  try {
+    setGeneratingPeriod(true);
+
+    const response = await fetch("/api/invoices", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "create-period",
+        start: customStart,
+        end: customEnd,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.success === false) {
+      throw new Error(
+        result.error || "Failed to generate invoices."
+      );
+    }
+
+    const invoiceCount = Array.isArray(result.data)
+  ? result.data.length
+  : 0;
+
+alert(
+  `Invoice generation completed. ${invoiceCount} invoice(s) processed. Existing invoices for the same property and date range were left unchanged.`
+);
+    await loadInvoices();
+  } catch (error) {
+    console.error("Failed to generate custom-period invoices:", error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to generate invoices."
+    );
+  } finally {
+    setGeneratingPeriod(false);
+  }
+}
 
   async function handleToggleHst(
     invoice: Invoice
@@ -277,11 +341,89 @@ export default function OfficeInvoicesPage() {
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-slate-100 bg-white shadow-md">
             <FileText className="h-8 w-8 text-[#2E7BBE]" />
           </div>
+
+        </div>
+
+        {/* CUSTOM INVOICE PERIOD */}
+
+        <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-md">
+          <h2 className="text-xl font-bold text-[#1F4E79]">
+            Generate Custom Period
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-500">
+            Choose a start and end date to generate owner invoices
+            for a custom billing period.
+          </p>
+
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <label
+                htmlFor="custom-invoice-start"
+                className="mb-2 block text-sm font-medium text-slate-700"
+              >
+                Start date
+              </label>
+
+              <input
+                id="custom-invoice-start"
+                type="date"
+                value={customStart}
+                onChange={(event) => setCustomStart(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-700 outline-none focus:border-[#2E7BBE]"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="custom-invoice-end"
+                className="mb-2 block text-sm font-medium text-slate-700"
+              >
+                End date
+              </label>
+
+              <input
+                id="custom-invoice-end"
+                type="date"
+                value={customEnd}
+                min={customStart || undefined}
+                onChange={(event) => setCustomEnd(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-700 outline-none focus:border-[#2E7BBE]"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handleGenerateCustomPeriod}
+                disabled={
+                  generatingPeriod ||
+                  !customStart ||
+                  !customEnd ||
+                  customStart > customEnd
+                }
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2E7BBE] px-5 py-3 font-semibold text-white transition hover:bg-[#1F4E79] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {generatingPeriod && (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                )}
+
+                {generatingPeriod
+                  ? "Generating..."
+                  : "Generate Invoices"}
+              </button>
+            </div>
+          </div>
+
+          <p className="mt-4 text-xs text-slate-400">
+            Existing invoices for the same property and period may remain unchanged.
+          </p>
         </div>
 
         {/* STATS */}
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+
 
           <div className="rounded-[28px] border border-slate-100 bg-white p-6 shadow-md">
             <p className="text-xs uppercase tracking-widest text-slate-400">

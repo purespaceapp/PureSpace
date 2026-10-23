@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-
+import { getExtras } from "@/lib/extras";
 async function getLogo() {
 
   const response = await fetch("/images/logo.jpg");
@@ -19,6 +19,7 @@ async function getLogo() {
   });
 
 }
+
 export async function downloadInvoice(
   employee: any,
   jobs: any[],
@@ -31,6 +32,7 @@ export async function downloadInvoice(
     label: string;
   }
 ) {
+    const catalogExtras = await getExtras();
   const logo = await getLogo();
 
   const doc = new jsPDF("p", "mm", "a4");
@@ -165,7 +167,7 @@ doc.roundedRect(
 );
   doc.setFillColor(235,244,255);
 
-  
+
   doc.setFont("helvetica","bold");
 
   doc.text("Date",25,92);
@@ -238,27 +240,29 @@ doc.text(
 );
 
 doc.setFont("helvetica","normal");
-  const basePay =
-    Number(job.cleaner_pay) -
-    job.extras.reduce(
-      (sum: number, extra: any) => {
 
-        const cleanerExtra =
-          extra.extra_id === 1 ? 16 :
-          extra.extra_id === 2 ? 18 :
-          extra.extra_id === 3 ? 25 :
-          extra.extra_id === 4 ? 10 :
-          extra.extra_id === 5 ? 15 :
-          extra.extra_id === 6 ? 15 :
-          extra.extra_id === 7 ? 18 :
-          extra.extra_id === 8 ? 18 :
-          0;
+const extrasForJob = Array.isArray(job.extras) ? job.extras : [];
 
-        return sum + cleanerExtra * extra.quantity;
 
-      },
-      0
-    );
+const extrasPayTotal = extrasForJob.reduce(
+  (sum: number, extra: any) => {
+    const price =
+      extra.custom_name != null
+        ? Number(extra.custom_cleaner_price || 0)
+        : Number(
+            catalogExtras.find(
+              (catalogExtra: any) =>
+                Number(catalogExtra.id) === Number(extra.extra_id)
+            )?.cleaner_price ?? 0
+          );
+
+    return sum + price * Number(extra.quantity || 0);
+  },
+  0
+);
+
+
+const basePay = Number(job.cleaner_pay || 0) - extrasPayTotal;
 
  doc.setFont("helvetica","bold");
 
@@ -272,49 +276,46 @@ doc.setFont("helvetica","normal");
 
   y += 8;
 
-  job.extras.forEach((extra:any)=>{
+extrasForJob.forEach((extra: any) => {
 
-    const cleanerExtra =
-      extra.extra_id === 1 ? 16 :
-      extra.extra_id === 2 ? 18 :
-      extra.extra_id === 3 ? 25 :
-      extra.extra_id === 4 ? 10 :
-      extra.extra_id === 5 ? 15 :
-      extra.extra_id === 6 ? 15 :
-      extra.extra_id === 7 ? 18 :
-      extra.extra_id === 8 ? 18 :
-      0;
-
-    const name =
-      extra.extra_id === 1 ? "Laundry" :
-      extra.extra_id === 2 ? "Extra Hour" :
-      extra.extra_id === 3 ? "Deep Clean" :
-      extra.extra_id === 4 ? "Windows" :
-      extra.extra_id === 5 ? "Pet Hair" :
-      extra.extra_id === 6 ? "Extra Linen" :
-      extra.extra_id === 7 ? "Biohazard" :
-      extra.extra_id === 8 ? "Balcony" :
-      "Extra";
-
-    doc.setTextColor(110);
-
-    doc.text(
-      `${name} x${extra.quantity}`,
-      65,
-      y
+const cleanerExtra =
+  extra.custom_name != null
+    ? Number(extra.custom_cleaner_price || 0)
+    : Number(
+        catalogExtras.find(
+          (catalogExtra: any) =>
+            Number(catalogExtra.id) === Number(extra.extra_id)
+        )?.cleaner_price ?? 0
+      );
+  const name =
+    extra.custom_name ??
+    (
+      Number(extra.extra_id) === 1 ? "Laundry" :
+      Number(extra.extra_id) === 2 ? "Extra Hour" :
+      Number(extra.extra_id) === 3 ? "Deep Clean" :
+      Number(extra.extra_id) === 4 ? "Windows" :
+      Number(extra.extra_id) === 5 ? "Pet Hair" :
+      Number(extra.extra_id) === 6 ? "Extra Linen" :
+      Number(extra.extra_id) === 7 ? "Biohazard" :
+      Number(extra.extra_id) === 8 ? "Balcony" :
+      "Extra"
     );
 
-    doc.setTextColor(0,160,70);
+  const quantity = Number(extra.quantity || 0);
 
-    doc.text(
-      `+$${cleanerExtra * extra.quantity}`,
-      170,
-      y
-    );
+  doc.setTextColor(110);
+  doc.text(`${name} x${quantity}`, 65, y);
 
-    y += 8;
+  doc.setTextColor(0, 160, 70);
+  doc.text(
+    `+$${(cleanerExtra * quantity).toFixed(2)}`,
+    170,
+    y
+  );
 
-  });
+  y += 8;
+});
+
 
   y += 6;
   const receiptsForProperty =
@@ -428,7 +429,7 @@ doc.text(
   "Generated automatically by PureSpace Cleaning Management System",
   100,
   293
-);  
+);
 doc.save("Payroll-Invoice.pdf");
 
 }

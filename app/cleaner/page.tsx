@@ -3,7 +3,7 @@
 import { downloadInvoice } from "@/lib/invoice";
 import { useEffect, useMemo, useState } from "react";
 import { getCleanerSchedule } from "@/lib/cleaner";
-import { getScheduleExtras } from "@/lib/extras";
+import { getExtras, getScheduleExtras } from "@/lib/extras";
 import { getProperties } from "@/lib/properties";
 import { getApprovedCleanerReceipts } from "@/lib/receipts";
 import { getCurrentBillingPeriod } from "@/lib/billingPeriod";
@@ -15,6 +15,7 @@ export default function CleanerPage() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [employee, setEmployee] = useState<any>(null);
   const [properties, setProperties] = useState<any[]>([]);
+  const [catalogExtras, setCatalogExtras] = useState<any[]>([]);
   const [approvedReceipts, setApprovedReceipts] = useState<any[]>([]);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>(
     {}
@@ -50,7 +51,10 @@ export default function CleanerPage() {
       setEmployee(employeeData);
 
       const propertyData = await getProperties();
-      setProperties(propertyData);
+setProperties(propertyData);
+
+const extrasCatalog = await getExtras();
+setCatalogExtras(extrasCatalog);
 
       const schedule = await getCleanerSchedule(id);
 
@@ -100,16 +104,22 @@ export default function CleanerPage() {
 
   const grandTotal = cleaningTotal + receiptTotal;
 
-  const totalExtras = completedJobs.reduce((sum, job) => {
-    return sum + (job.extras || []).reduce((extraSum: number, extra: any) => {
-      const prices: Record<number, number> = {
-        1: 16, 2: 18, 3: 25, 4: 10,
-        5: 15, 6: 15, 7: 18, 8: 18,
-      };
-      const price = prices[Number(extra.extra_id)] || 0;
+const totalExtras = completedJobs.reduce((sum, job) => {
+  const extrasTotal = (job.extras || []).reduce(
+    (extraSum: number, extra: any) => {
+      const price =
+        extra.custom_name != null
+          ? Number(extra.custom_cleaner_price || 0)
+          : getCleanerExtra(Number(extra.extra_id ?? 0));
+
       return extraSum + price * Number(extra.quantity || 0);
-    }, 0);
-  }, 0);
+    },
+    0
+  );
+
+  return sum + extrasTotal;
+}, 0);
+
 
   const jobsByDate = useMemo(() => {
     const grouped: Record<string, any[]> = {};
@@ -150,28 +160,13 @@ export default function CleanerPage() {
     });
   };
 
-  const getCleanerExtra = (extraId: number) => {
-    switch (extraId) {
-      case 1:
-        return 16;
-      case 2:
-        return 18;
-      case 3:
-        return 25;
-      case 4:
-        return 10;
-      case 5:
-        return 15;
-      case 6:
-        return 15;
-      case 7:
-        return 18;
-      case 8:
-        return 18;
-      default:
-        return 0;
-    }
-  };
+ const getCleanerExtra = (extraId: number) => {
+  const extra = catalogExtras.find(
+    (item: any) => Number(item.id) === Number(extraId)
+  );
+
+  return Number(extra?.cleaner_price ?? 0);
+};
 
   const getExtraName = (extraId: number) => {
     switch (extraId) {
@@ -476,7 +471,7 @@ const getDayTotal = (dayJobs: any[]): number => {
                             : 0;
 
                           const jobTotal =
-                            Number(jobBasePay + jobExtras + jobReceipts) || 0;
+  Number(jobBasePay + jobReceipts) || 0;
 
                           return (
                             <div
@@ -533,9 +528,9 @@ const getDayTotal = (dayJobs: any[]): number => {
                                   <div className="space-y-2">
                                     {job.extras.map((extra: any) => {
                                       const cleanerExtra =
-                                        getCleanerExtra(
-                                          Number(extra.extra_id)
-                                        );
+  extra.custom_name != null
+    ? Number(extra.custom_cleaner_price || 0)
+    : getCleanerExtra(Number(extra.extra_id ?? 0));
 
                                       const quantity = Number(
                                         extra.quantity || 0
@@ -550,12 +545,11 @@ const getDayTotal = (dayJobs: any[]): number => {
                                           className="flex items-center justify-between gap-3 text-sm"
                                         >
                                           <span className="text-slate-600">
-                                            {getExtraIcon(
-                                              Number(extra.extra_id)
-                                            )}{" "}
-                                            {getExtraName(
-                                              Number(extra.extra_id)
-                                            )}{" "}
+                                            {extra.custom_name != null
+                                              ? "✨"
+                                              : getExtraIcon(Number(extra.extra_id ?? 0))}{" "}
+                                            {extra.custom_name ??
+                                              getExtraName(Number(extra.extra_id ?? 0))}{" "}
                                             ×{quantity}
                                           </span>
 

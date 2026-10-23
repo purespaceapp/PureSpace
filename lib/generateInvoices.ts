@@ -1,3 +1,4 @@
+
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type GeneratePeriodInput = {
@@ -26,7 +27,6 @@ export async function generateInvoicesForPeriod({
   hstEnabled = false,
 }: GeneratePeriodInput): Promise<GeneratedInvoice[]> {
   /*
-   * IMPORTANT:
    * Invoices are immutable.
    * If an invoice already exists for a property + period,
    * we leave it exactly as it is.
@@ -35,12 +35,7 @@ export async function generateInvoicesForPeriod({
   const { data: properties, error: propertiesError } =
     await supabaseAdmin
       .from("properties")
-      .select(`
-        id,
-        name,
-        address,
-        owner_id
-      `)
+      .select("id, name, address, owner_id")
       .not("owner_id", "is", null);
 
   if (propertiesError) {
@@ -55,8 +50,7 @@ export async function generateInvoicesForPeriod({
     }
 
     /*
-     * Check whether this property already has
-     * a finalized invoice for this billing period.
+     * Do not recreate an invoice for the same property and period.
      */
     const { data: existingInvoice, error: existingError } =
       await supabaseAdmin
@@ -77,8 +71,7 @@ export async function generateInvoicesForPeriod({
     }
 
     /*
-     * Completed cleanings for this property
-     * inside the billing period.
+     * Completed cleanings within the selected billing period.
      */
     const { data: schedules, error: schedulesError } =
       await supabaseAdmin
@@ -102,7 +95,7 @@ export async function generateInvoicesForPeriod({
     }
 
     /*
-     * Approved property expenses inside the period.
+     * Approved property expenses within the billing period.
      */
     const { data: receipts, error: receiptsError } =
       await supabaseAdmin
@@ -127,14 +120,9 @@ export async function generateInvoicesForPeriod({
     }
 
     /*
-     * We intentionally use schedule.company_charge
-     * as the cleaning amount because that is the amount
-     * currently used by the Owner Statement.
-     *
-     * Extras are stored as invoice detail below,
-     * but are NOT added again to the total here.
-     * This prevents accidentally double-charging if
-     * company_charge already includes them.
+     * company_charge is the cleaning amount.
+     * Extras are displayed as invoice details but are not added
+     * a second time to the invoice total.
      */
     const totalCleaning = (schedules ?? []).reduce(
       (sum, schedule) =>
@@ -143,41 +131,28 @@ export async function generateInvoicesForPeriod({
     );
 
     const totalExpenses = (receipts ?? []).reduce(
-      (sum, receipt) => sum + toNumber(receipt.amount),
+      (sum, receipt) =>
+        sum + toNumber(receipt.amount),
       0
     );
 
-        if (
+    if (
       (schedules ?? []).length === 0 &&
       (receipts ?? []).length === 0
     ) {
       continue;
     }
-    
-   const subtotal = totalCleaning + totalExpenses;
 
-const hstAmount = hstEnabled
-  ? subtotal * 0.13
-  : 0;
-
-const totalDue = subtotal + hstAmount;
+    const subtotal = totalCleaning + totalExpenses;
+    const hstAmount = hstEnabled ? subtotal * 0.13 : 0;
+    const totalDue = subtotal + hstAmount;
 
     /*
-     * Invoice number:
-     * PS-YYYYMMDD-PROPERTYID
-     *
-     * Example:
-     * PS-20260831-00012
+     * Preserve the existing invoice-number format.
+     * Example: PS-20260831-00012
      */
-    const propertyNumber = String(property.id).padStart(
-      5,
-      "0"
-    );
-
-    const invoiceNumber = `PS-${end.replaceAll(
-      "-",
-      ""
-    )}-${propertyNumber}`;
+    const propertyNumber = String(property.id).padStart(5, "0");
+    const invoiceNumber = `PS-${end.replaceAll("-", "")}-${propertyNumber}`;
 
     /*
      * Create the permanent invoice snapshot.
@@ -193,29 +168,31 @@ const totalDue = subtotal + hstAmount;
           period_end: end,
           property_name: property.name,
           property_address: property.address ?? null,
-         total_cleaning: totalCleaning,
-total_expenses: totalExpenses,
-total_due: totalDue,
-hst_enabled: hstEnabled,
-status: "Finalized",
+          total_cleaning: totalCleaning,
+          total_expenses: totalExpenses,
+          total_due: totalDue,
+          hst_enabled: hstEnabled,
+          status: "Finalized",
         })
         .select()
         .single();
 
     if (invoiceError) {
       /*
-       * If another request created the same invoice
-       * at the same time, retrieve it instead of failing.
+       * If a concurrent request created the same invoice,
+       * retrieve it instead of creating a duplicate.
        */
       if (invoiceError.code === "23505") {
-        const { data: concurrentInvoice, error: concurrentError } =
-          await supabaseAdmin
-            .from("invoices")
-            .select("*")
-            .eq("property_id", property.id)
-            .eq("period_start", start)
-            .eq("period_end", end)
-            .single();
+        const {
+          data: concurrentInvoice,
+          error: concurrentError,
+        } = await supabaseAdmin
+          .from("invoices")
+          .select("*")
+          .eq("property_id", property.id)
+          .eq("period_start", start)
+          .eq("period_end", end)
+          .single();
 
         if (concurrentError) {
           throw concurrentError;
@@ -241,7 +218,7 @@ status: "Finalized",
     }> = [];
 
     /*
-     * Cleaning items.
+     * Cleaning invoice items and catalog extras.
      */
     for (const schedule of schedules ?? []) {
       const amount = toNumber(schedule.company_charge);
@@ -259,36 +236,34 @@ status: "Finalized",
       });
 
       /*
-       * Store extras as detail.
-       * They do not change total_due.
+       * Extras are invoice details only.
+       * They do not increase total_due a second time.
        */
-           const { data: scheduleExtras, error: extrasError } =
-        await supabaseAdmin
-          .from("schedule_extras")
-          .select(`
-            id,
-            extra_id,
-            quantity
-          `)
-          .eq("schedule_id", schedule.id);
+      const {
+        data: scheduleExtras,
+        error: extrasError,
+      } = await supabaseAdmin
+        .from("schedule_extras")
+        .select("id, extra_id, quantity")
+        .eq("schedule_id", schedule.id);
 
       if (extrasError) {
         throw extrasError;
       }
 
       for (const scheduleExtra of scheduleExtras ?? []) {
-        if (!scheduleExtra.extra_id) {
+        if (scheduleExtra.extra_id == null) {
           continue;
         }
+
+        const quantity = toNumber(
+          scheduleExtra.quantity ?? 1
+        );
 
         const { data: extra, error: extraError } =
           await supabaseAdmin
             .from("extras")
-            .select(`
-              id,
-              name,
-              owner_price
-            `)
+            .select("id, name, owner_price")
             .eq("id", Number(scheduleExtra.extra_id))
             .maybeSingle();
 
@@ -299,10 +274,6 @@ status: "Finalized",
         if (!extra) {
           continue;
         }
-
-        const quantity = toNumber(
-          scheduleExtra.quantity ?? 1
-        );
 
         const unitPrice = toNumber(extra.owner_price);
 
@@ -321,7 +292,7 @@ status: "Finalized",
     }
 
     /*
-     * Property expense items.
+     * Property expense invoice items.
      */
     for (const receipt of receipts ?? []) {
       const amount = toNumber(receipt.amount);
@@ -332,8 +303,7 @@ status: "Finalized",
         schedule_id: receipt.schedule_id ?? null,
         receipt_id: receipt.id,
         item_date: receipt.purchase_date,
-        description:
-          receipt.office_notes || "Property Expense",
+        description: receipt.office_notes || "Property Expense",
         quantity: 1,
         unit_price: amount,
         amount,
@@ -351,7 +321,7 @@ status: "Finalized",
 
       if (itemsError) {
         /*
-         * Do not leave a half-created invoice.
+         * Avoid leaving an invoice without its line items.
          */
         await supabaseAdmin
           .from("invoices")
