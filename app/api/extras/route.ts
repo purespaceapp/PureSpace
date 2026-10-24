@@ -192,7 +192,7 @@ export async function POST(request: Request) {
 
       const { data: schedule, error: scheduleError } =
         await supabaseAdmin
-          .from("schedules")
+          .from("schedule")
           .select("id")
           .eq("id", scheduleId)
           .maybeSingle();
