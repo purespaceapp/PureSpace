@@ -14,11 +14,14 @@ async function extrasRequest(
     }),
   });
 
-  if (!response.ok) {
-    throw new Error("Extras request failed");
-  }
+  const result = await response.json().catch(() => null);
 
-  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      result?.error ||
+        `Extras request failed (HTTP ${response.status})`
+    );
+  }
 
   if (!result.success) {
     throw new Error(
