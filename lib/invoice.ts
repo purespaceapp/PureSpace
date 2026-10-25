@@ -1,5 +1,154 @@
 import jsPDF from "jspdf";
-import { getExtras } from "@/lib/extras";
+
+export type InvoiceItem = {
+  id?: number;
+  invoice_id?: number;
+  item_type: string;
+  schedule_id?: number | null;
+  receipt_id?: number | null;
+  item_date?: string | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+};
+
+export type Invoice = {
+  id: number;
+  invoice_number: string;
+
+  owner_id: number;
+  property_id: number;
+
+  period_start: string;
+  period_end: string;
+
+  property_name: string;
+  property_address?: string | null;
+
+  total_cleaning: number;
+  total_expenses: number;
+  total_due: number;
+
+  hst_enabled: boolean;
+
+  status: string;
+  payment_status: "Paid" | "Pending" | "Unpaid";
+
+  created_at: string;
+
+  properties?: any;
+  owners?: any;
+
+  items?: InvoiceItem[];
+};
+
+async function invoiceRequest(
+  action: string,
+  body: Record<string, any> = {}
+) {
+  const response = await fetch("/api/invoices", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action,
+      ...body,
+    }),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(
+      result.error || "Invoice request failed"
+    );
+  }
+
+  return result.data;
+}
+
+// OWNER
+export async function getOwnerInvoices(
+  ownerId: number
+): Promise<Invoice[]> {
+  return (
+    (await invoiceRequest("list-owner", {
+      ownerId,
+    })) ?? []
+  );
+}
+
+// SINGLE INVOICE
+export async function getInvoice(
+  invoiceId: number
+): Promise<Invoice | null> {
+  return await invoiceRequest("get", {
+    invoiceId,
+  });
+}
+
+// OFFICE
+export async function getOfficeInvoices() {
+  return (
+    (await invoiceRequest("list-office")) ?? []
+  );
+}
+
+// UPDATE HST FOR ONE INVOICE
+export async function setInvoiceHst(
+  invoiceId: number,
+  enabled: boolean
+): Promise<Invoice> {
+  return await invoiceRequest("set-invoice-hst", {
+    invoiceId,
+    enabled,
+  });
+}
+
+// UPDATE PAYMENT STATUS
+export async function setInvoicePaymentStatus(
+  invoiceId: number,
+  paymentStatus: "Paid" | "Pending" | "Unpaid"
+): Promise<Invoice> {
+  return await invoiceRequest("set-payment-status", {
+    invoiceId,
+    paymentStatus,
+  });
+}
+
+// CREATE
+export async function createInvoice(
+  invoice: Omit<
+    Invoice,
+    | "id"
+    | "invoice_number"
+    | "created_at"
+    | "items"
+  >,
+  items: InvoiceItem[] = []
+) {
+  return await invoiceRequest("create", {
+    invoice,
+    items,
+  });
+}
+
+// CURRENT OWNER STATEMENT
+export async function getCurrentOwnerStatement(
+  propertyId: number,
+  ownerId: number
+) {
+  return await invoiceRequest(
+    "current-property-statement",
+    {
+      propertyId,
+      ownerId,
+    }
+  );
+}
+
 async function getLogo() {
 
   const response = await fetch("/images/logo.jpg");
@@ -19,20 +168,20 @@ async function getLogo() {
   });
 
 }
-
 export async function downloadInvoice(
+
   employee: any,
+
   jobs: any[],
+
   properties: any[],
+
   grandTotal: number,
+
   approvedReceipts: any[],
-  billingPeriod: {
-    start: string;
-    end: string;
-    label: string;
-  }
+  billingPeriod?: any
+
 ) {
-    const catalogExtras = await getExtras();
   const logo = await getLogo();
 
   const doc = new jsPDF("p", "mm", "a4");
@@ -118,11 +267,20 @@ doc.text(
 );
 
 doc.text("Period:",120,66);
+const startDate =
+  jobs.length > 0
+    ? jobs[0].cleaning_date
+    : "-";
+
+const endDate =
+  jobs.length > 0
+    ? jobs[jobs.length - 1].cleaning_date
+    : "-";
 
 doc.text(
-billingPeriod.label,
-145,
-66
+  `${startDate} - ${endDate}`,
+  145,
+  66
 );
 
 doc.text("Invoice:",120,74);
@@ -240,29 +398,27 @@ doc.text(
 );
 
 doc.setFont("helvetica","normal");
+  const basePay =
+    Number(job.cleaner_pay) -
+    job.extras.reduce(
+      (sum: number, extra: any) => {
 
-const extrasForJob = Array.isArray(job.extras) ? job.extras : [];
+        const cleanerExtra =
+          extra.extra_id === 1 ? 16 :
+          extra.extra_id === 2 ? 18 :
+          extra.extra_id === 3 ? 25 :
+          extra.extra_id === 4 ? 10 :
+          extra.extra_id === 5 ? 15 :
+          extra.extra_id === 6 ? 15 :
+          extra.extra_id === 7 ? 18 :
+          extra.extra_id === 8 ? 18 :
+          0;
 
+        return sum + cleanerExtra * extra.quantity;
 
-const extrasPayTotal = extrasForJob.reduce(
-  (sum: number, extra: any) => {
-    const price =
-      extra.custom_name != null
-        ? Number(extra.custom_cleaner_price || 0)
-        : Number(
-            catalogExtras.find(
-              (catalogExtra: any) =>
-                Number(catalogExtra.id) === Number(extra.extra_id)
-            )?.cleaner_price ?? 0
-          );
-
-    return sum + price * Number(extra.quantity || 0);
-  },
-  0
-);
-
-
-const basePay = Number(job.cleaner_pay || 0) - extrasPayTotal;
+      },
+      0
+    );
 
  doc.setFont("helvetica","bold");
 
@@ -276,46 +432,49 @@ doc.setFont("helvetica","normal");
 
   y += 8;
 
-extrasForJob.forEach((extra: any) => {
+  job.extras.forEach((extra:any)=>{
 
-const cleanerExtra =
-  extra.custom_name != null
-    ? Number(extra.custom_cleaner_price || 0)
-    : Number(
-        catalogExtras.find(
-          (catalogExtra: any) =>
-            Number(catalogExtra.id) === Number(extra.extra_id)
-        )?.cleaner_price ?? 0
-      );
-  const name =
-    extra.custom_name ??
-    (
-      Number(extra.extra_id) === 1 ? "Laundry" :
-      Number(extra.extra_id) === 2 ? "Extra Hour" :
-      Number(extra.extra_id) === 3 ? "Deep Clean" :
-      Number(extra.extra_id) === 4 ? "Windows" :
-      Number(extra.extra_id) === 5 ? "Pet Hair" :
-      Number(extra.extra_id) === 6 ? "Extra Linen" :
-      Number(extra.extra_id) === 7 ? "Biohazard" :
-      Number(extra.extra_id) === 8 ? "Balcony" :
-      "Extra"
+    const cleanerExtra =
+      extra.extra_id === 1 ? 16 :
+      extra.extra_id === 2 ? 18 :
+      extra.extra_id === 3 ? 25 :
+      extra.extra_id === 4 ? 10 :
+      extra.extra_id === 5 ? 15 :
+      extra.extra_id === 6 ? 15 :
+      extra.extra_id === 7 ? 18 :
+      extra.extra_id === 8 ? 18 :
+      0;
+
+    const name =
+      extra.extra_id === 1 ? "Laundry" :
+      extra.extra_id === 2 ? "Extra Hour" :
+      extra.extra_id === 3 ? "Deep Clean" :
+      extra.extra_id === 4 ? "Windows" :
+      extra.extra_id === 5 ? "Pet Hair" :
+      extra.extra_id === 6 ? "Extra Linen" :
+      extra.extra_id === 7 ? "Biohazard" :
+      extra.extra_id === 8 ? "Balcony" :
+      "Extra";
+
+    doc.setTextColor(110);
+
+    doc.text(
+      `${name} x${extra.quantity}`,
+      65,
+      y
     );
 
-  const quantity = Number(extra.quantity || 0);
+    doc.setTextColor(0,160,70);
 
-  doc.setTextColor(110);
-  doc.text(`${name} x${quantity}`, 65, y);
+    doc.text(
+      `+$${cleanerExtra * extra.quantity}`,
+      170,
+      y
+    );
 
-  doc.setTextColor(0, 160, 70);
-  doc.text(
-    `+$${(cleanerExtra * quantity).toFixed(2)}`,
-    170,
-    y
-  );
+    y += 8;
 
-  y += 8;
-});
-
+  });
 
   y += 6;
   const receiptsForProperty =

@@ -26,22 +26,14 @@ export type Invoice = {
 
   total_cleaning: number;
   total_expenses: number;
-
-  /**
-   * Final amount stored in the database.
-   *
-   * IMPORTANT:
-   * This already includes HST when hst_enabled === true.
-   */
   total_due: number;
 
-  /**
-   * HST belongs to the individual invoice.
-   * It is NOT a global application setting.
-   */
   hst_enabled: boolean;
 
   status: string;
+
+  payment_status: "Paid" | "Pending" | "Unpaid";
+
   created_at: string;
 
   properties?: any;
@@ -76,10 +68,7 @@ async function invoiceRequest(
   return result.data;
 }
 
-// ==========================================
 // OWNER
-// ==========================================
-
 export async function getOwnerInvoices(
   ownerId: number
 ): Promise<Invoice[]> {
@@ -90,10 +79,7 @@ export async function getOwnerInvoices(
   );
 }
 
-// ==========================================
 // SINGLE INVOICE
-// ==========================================
-
 export async function getInvoice(
   invoiceId: number
 ): Promise<Invoice | null> {
@@ -102,20 +88,14 @@ export async function getInvoice(
   });
 }
 
-// ==========================================
 // OFFICE
-// ==========================================
-
 export async function getOfficeInvoices() {
   return (
     (await invoiceRequest("list-office")) ?? []
   );
 }
 
-// ==========================================
 // UPDATE HST FOR ONE INVOICE
-// ==========================================
-
 export async function setInvoiceHst(
   invoiceId: number,
   enabled: boolean
@@ -126,10 +106,18 @@ export async function setInvoiceHst(
   });
 }
 
-// ==========================================
-// CREATE
-// ==========================================
+// UPDATE PAYMENT STATUS
+export async function setInvoicePaymentStatus(
+  invoiceId: number,
+  paymentStatus: "Paid" | "Pending" | "Unpaid"
+): Promise<Invoice> {
+  return await invoiceRequest("set-payment-status", {
+    invoiceId,
+    paymentStatus,
+  });
+}
 
+// CREATE
 export async function createInvoice(
   invoice: Omit<
     Invoice,
@@ -145,10 +133,8 @@ export async function createInvoice(
     items,
   });
 }
-// ==========================================
-// CURRENT OWNER STATEMENT
-// ==========================================
 
+// CURRENT OWNER STATEMENT
 export async function getCurrentOwnerStatement(
   propertyId: number,
   ownerId: number

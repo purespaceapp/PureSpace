@@ -53,6 +53,59 @@ export async function POST(request: Request) {
     // UPDATE HST FOR A SINGLE INVOICE
     // ==========================================
 
+    // ==========================================
+    // UPDATE PAYMENT STATUS FOR ONE INVOICE
+    // ==========================================
+    if (action === "set-payment-status") {
+      const officeSession = await requireOfficeSession();
+
+      if (!officeSession) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+
+      const invoiceId = Number(body.invoiceId);
+      const paymentStatus = body.paymentStatus;
+
+      const allowedStatuses = [
+        "Paid",
+        "Pending",
+        "Unpaid",
+      ];
+
+      if (
+        !Number.isSafeInteger(invoiceId) ||
+        invoiceId <= 0 ||
+        !allowedStatuses.includes(paymentStatus)
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid invoice ID or payment status",
+          },
+          { status: 400 }
+        );
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("invoices")
+        .update({ payment_status: paymentStatus })
+        .eq("id", invoiceId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return NextResponse.json({
+        success: true,
+        data,
+      });
+    }
+
+
+
     if (action === "set-invoice-hst") {
       const invoiceId = Number(body.invoiceId);
       const enabled = Boolean(body.enabled);
