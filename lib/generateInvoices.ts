@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type GeneratePeriodInput = {
@@ -16,6 +15,17 @@ type GeneratedInvoice = {
   period_end: string;
 };
 
+type InvoiceItemInput = {
+  item_type: string;
+  schedule_id: number | null;
+  receipt_id: number | null;
+  item_date: string | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+};
+
 function toNumber(value: unknown): number {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
@@ -26,11 +36,9 @@ export async function generateInvoicesForPeriod({
   end,
   hstEnabled = false,
 }: GeneratePeriodInput): Promise<GeneratedInvoice[]> {
-  /*
-   * Invoices are immutable.
-   * If an invoice already exists for a property + period,
-   * we leave it exactly as it is.
-   */
+  if (start > end) {
+    throw new Error("The invoice start date must be before the end date.");
+  }
 
   const { data: properties, error: propertiesError } =
     await supabaseAdmin
@@ -38,20 +46,13 @@ export async function generateInvoicesForPeriod({
       .select("id, name, address, owner_id")
       .not("owner_id", "is", null);
 
-  if (propertiesError) {
-    throw propertiesError;
-  }
+  if (propertiesError) throw propertiesError;
 
   const generated: GeneratedInvoice[] = [];
 
   for (const property of properties ?? []) {
-    if (!property.owner_id) {
-      continue;
-    }
+    if (!property.owner_id) continue;
 
-    /*
-     * Do not recreate an invoice for the same property and period.
-     */
     const { data: existingInvoice, error: existingError } =
       await supabaseAdmin
         .from("invoices")
@@ -61,170 +62,57 @@ export async function generateInvoicesForPeriod({
         .eq("period_end", end)
         .maybeSingle();
 
-    if (existingError) {
-      throw existingError;
-    }
+    if (existingError) throw existingError;
 
-    if (existingInvoice) {
-      generated.push(existingInvoice);
-      continue;
-    }
-
-    /*
-     * Completed cleanings within the selected billing period.
-     */
     const { data: schedules, error: schedulesError } =
       await supabaseAdmin
         .from("schedule")
-        .select(`
-          id,
-          cleaning_date,
-          company_charge,
-          notes
-        `)
+        .select("id, cleaning_date, company_charge, notes")
         .eq("property_id", property.id)
         .eq("status", "Completed")
         .gte("cleaning_date", start)
         .lte("cleaning_date", end)
-        .order("cleaning_date", {
-          ascending: true,
-        });
+        .order("cleaning_date", { ascending: true });
 
-    if (schedulesError) {
-      throw schedulesError;
-    }
+    if (schedulesError) throw schedulesError;
 
-    /*
-     * Approved property expenses within the billing period.
-     */
     const { data: receipts, error: receiptsError } =
       await supabaseAdmin
         .from("receipts")
-        .select(`
-          id,
-          schedule_id,
-          purchase_date,
-          amount,
-          office_notes
-        `)
+        .select("id, schedule_id, purchase_date, amount, office_notes")
         .eq("property_id", property.id)
         .eq("status", "Approved")
         .gte("purchase_date", start)
         .lte("purchase_date", end)
-        .order("purchase_date", {
-          ascending: true,
-        });
+        .order("purchase_date", { ascending: true });
 
-    if (receiptsError) {
-      throw receiptsError;
+    if (receiptsError) throw receiptsError;
+
+    // Don't zero an existing invoice if no source records are found.
+    if (!(schedules?.length) && !(receipts?.length)) {
+      if (existingInvoice) generated.push(existingInvoice);
+      continue;
     }
 
-    /*
-     * company_charge is the cleaning amount.
-     * Extras are displayed as invoice details but are not added
-     * a second time to the invoice total.
-     */
     const totalCleaning = (schedules ?? []).reduce(
-      (sum, schedule) =>
-        sum + toNumber(schedule.company_charge),
+      (sum, schedule) => sum + toNumber(schedule.company_charge),
       0
     );
 
     const totalExpenses = (receipts ?? []).reduce(
-      (sum, receipt) =>
-        sum + toNumber(receipt.amount),
+      (sum, receipt) => sum + toNumber(receipt.amount),
       0
     );
 
-    if (
-      (schedules ?? []).length === 0 &&
-      (receipts ?? []).length === 0
-    ) {
-      continue;
-    }
+    const items: InvoiceItemInput[] = [];
 
-    const subtotal = totalCleaning + totalExpenses;
-    const hstAmount = hstEnabled ? subtotal * 0.13 : 0;
-    const totalDue = subtotal + hstAmount;
-
-    /*
-     * Preserve the existing invoice-number format.
-     * Example: PS-20260831-00012
-     */
-    const propertyNumber = String(property.id).padStart(5, "0");
-    const invoiceNumber = `PS-${end.replaceAll("-", "")}-${propertyNumber}`;
-
-    /*
-     * Create the permanent invoice snapshot.
-     */
-    const { data: invoice, error: invoiceError } =
-      await supabaseAdmin
-        .from("invoices")
-        .insert({
-          invoice_number: invoiceNumber,
-          owner_id: property.owner_id,
-          property_id: property.id,
-          period_start: start,
-          period_end: end,
-          property_name: property.name,
-          property_address: property.address ?? null,
-          total_cleaning: totalCleaning,
-          total_expenses: totalExpenses,
-          total_due: totalDue,
-          hst_enabled: hstEnabled,
-          status: "Finalized",
-        })
-        .select()
-        .single();
-
-    if (invoiceError) {
-      /*
-       * If a concurrent request created the same invoice,
-       * retrieve it instead of creating a duplicate.
-       */
-      if (invoiceError.code === "23505") {
-        const {
-          data: concurrentInvoice,
-          error: concurrentError,
-        } = await supabaseAdmin
-          .from("invoices")
-          .select("*")
-          .eq("property_id", property.id)
-          .eq("period_start", start)
-          .eq("period_end", end)
-          .single();
-
-        if (concurrentError) {
-          throw concurrentError;
-        }
-
-        generated.push(concurrentInvoice);
-        continue;
-      }
-
-      throw invoiceError;
-    }
-
-    const items: Array<{
-      invoice_id: number;
-      item_type: string;
-      schedule_id: number | null;
-      receipt_id: number | null;
-      item_date: string | null;
-      description: string;
-      quantity: number;
-      unit_price: number;
-      amount: number;
-    }> = [];
-
-    /*
-     * Cleaning invoice items and catalog extras.
-     */
+    // Cleaning charges and extras are invoice details.
+    // company_charge already represents the cleaning charge;
+    // extras are not added a second time to the invoice total.
     for (const schedule of schedules ?? []) {
       const amount = toNumber(schedule.company_charge);
 
       items.push({
-        invoice_id: invoice.id,
         item_type: "cleaning",
         schedule_id: schedule.id,
         receipt_id: null,
@@ -235,30 +123,16 @@ export async function generateInvoicesForPeriod({
         amount,
       });
 
-      /*
-       * Extras are invoice details only.
-       * They do not increase total_due a second time.
-       */
-      const {
-        data: scheduleExtras,
-        error: extrasError,
-      } = await supabaseAdmin
-        .from("schedule_extras")
-        .select("id, extra_id, quantity")
-        .eq("schedule_id", schedule.id);
+      const { data: scheduleExtras, error: extrasError } =
+        await supabaseAdmin
+          .from("schedule_extras")
+          .select("id, extra_id, quantity")
+          .eq("schedule_id", schedule.id);
 
-      if (extrasError) {
-        throw extrasError;
-      }
+      if (extrasError) throw extrasError;
 
       for (const scheduleExtra of scheduleExtras ?? []) {
-        if (scheduleExtra.extra_id == null) {
-          continue;
-        }
-
-        const quantity = toNumber(
-          scheduleExtra.quantity ?? 1
-        );
+        if (scheduleExtra.extra_id == null) continue;
 
         const { data: extra, error: extraError } =
           await supabaseAdmin
@@ -267,18 +141,13 @@ export async function generateInvoicesForPeriod({
             .eq("id", Number(scheduleExtra.extra_id))
             .maybeSingle();
 
-        if (extraError) {
-          throw extraError;
-        }
+        if (extraError) throw extraError;
+        if (!extra) continue;
 
-        if (!extra) {
-          continue;
-        }
-
+        const quantity = toNumber(scheduleExtra.quantity ?? 1);
         const unitPrice = toNumber(extra.owner_price);
 
         items.push({
-          invoice_id: invoice.id,
           item_type: "extra",
           schedule_id: schedule.id,
           receipt_id: null,
@@ -291,14 +160,11 @@ export async function generateInvoicesForPeriod({
       }
     }
 
-    /*
-     * Property expense invoice items.
-     */
+    // Approved expenses.
     for (const receipt of receipts ?? []) {
       const amount = toNumber(receipt.amount);
 
       items.push({
-        invoice_id: invoice.id,
         item_type: "expense",
         schedule_id: receipt.schedule_id ?? null,
         receipt_id: receipt.id,
@@ -310,29 +176,45 @@ export async function generateInvoicesForPeriod({
       });
     }
 
-    /*
-     * Save all invoice line items.
-     */
-    if (items.length > 0) {
-      const { error: itemsError } =
-        await supabaseAdmin
-          .from("invoice_items")
-          .insert(items);
+    const propertyNumber = String(property.id).padStart(5, "0");
+    const invoiceNumber =
+      `PS-${end.replaceAll("-", "")}-${propertyNumber}`;
 
-      if (itemsError) {
-        /*
-         * Avoid leaving an invoice without its line items.
-         */
-        await supabaseAdmin
-          .from("invoices")
-          .delete()
-          .eq("id", invoice.id);
+    // Preserve the existing invoice's tax setting when refreshing it.
+    const effectiveHstEnabled = existingInvoice
+      ? Boolean(existingInvoice.hst_enabled)
+      : hstEnabled;
 
-        throw itemsError;
-      }
+    const { data: refreshedInvoice, error: refreshError } =
+      await supabaseAdmin.rpc("refresh_period_invoice", {
+        p_invoice: {
+          invoice_number: existingInvoice?.invoice_number ?? invoiceNumber,
+          owner_id: property.owner_id,
+          property_id: property.id,
+          period_start: start,
+          period_end: end,
+          property_name: property.name,
+          property_address: property.address ?? null,
+          total_cleaning: totalCleaning,
+          total_expenses: totalExpenses,
+          hst_enabled: effectiveHstEnabled,
+        },
+        p_items: items,
+      });
+
+    if (refreshError) throw refreshError;
+
+    const invoice = Array.isArray(refreshedInvoice)
+      ? refreshedInvoice[0]
+      : refreshedInvoice;
+
+    if (!invoice) {
+      throw new Error(
+        `Invoice refresh returned no invoice for property ${property.id}.`
+      );
     }
 
-    generated.push(invoice);
+    generated.push(invoice as GeneratedInvoice);
   }
 
   return generated;
