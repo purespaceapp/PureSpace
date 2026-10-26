@@ -222,128 +222,250 @@ export default function OfficeInvoicesPage() {
     }
   }
 
-  function handleDownloadManualInvoice() {
+
+  async function handleDownloadManualInvoice() {
     if (!manualPreview) return;
 
     const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const margin = 42;
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 42;
+    const contentWidth = pageWidth - margin * 2;
+    const navy: [number, number, number] = [31, 78, 121];
+    const blue: [number, number, number] = [46, 123, 190];
+    const muted: [number, number, number] = [100, 116, 139];
+    const pale: [number, number, number] = [242, 247, 251];
+    const money = (value: number) => formatMoney(value);
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(21);
-    doc.text("PureSpace Cleaning", margin, 48);
-    doc.setFontSize(16);
-    doc.text("MANUAL INVOICE", margin, 76);
+    // Brand logo
+    try {
+      const response = await fetch("/images/logo.jpg");
+      if (response.ok) {
+        const blob = await response.blob();
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Client: ${manualPreview.owner.name}`, margin, 100);
+        const logoData = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
 
-    let tableStartY = 130;
-
-    if (manualPreview.owner.email) {
-      doc.text(`Email: ${manualPreview.owner.email}`, margin, 115);
-      tableStartY = 165;
+        doc.addImage(logoData, "JPEG", margin, 28, 86, 58);
+      }
+    } catch (error) {
+      console.warn("Could not load PureSpace logo:", error);
     }
 
-    doc.text(
-      `Billing period: ${formatDate(manualPreview.period_start)} - ${formatDate(manualPreview.period_end)}`,
-      margin,
-      manualPreview.owner.email ? 130 : 115
-    );
+    // Company header
+    doc.setTextColor(...navy);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(19);
+    doc.text("PureSpace Cleaning", margin + 100, 48);
 
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
+    doc.setTextColor(...muted);
+    doc.text("Professional Cleaning Services", margin + 100, 64);
+    doc.text("cleaningpurespace26@gmail.com", margin + 100, 78);
+
+    doc.setDrawColor(...blue);
+    doc.setLineWidth(2);
+    doc.line(margin, 101, pageWidth - margin, 101);
+
+    // Finance title
+    doc.setTextColor(...navy);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("INVOICE", margin, 132);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...muted);
+    doc.text("FINANCE DEPARTMENT", pageWidth - margin, 126, {
+      align: "right",
+    });
+    doc.text("BILLING STATEMENT", pageWidth - margin, 140, {
+      align: "right",
+    });
+
+    // Client and billing period panel
+    doc.setFillColor(...pale);
+    doc.roundedRect(margin, 155, contentWidth, 84, 7, 7, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...muted);
+    doc.text("BILLED TO", margin + 14, 174);
+    doc.text("BILLING PERIOD", pageWidth / 2 + 10, 174);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...navy);
+    doc.text(String(manualPreview.owner.name || "Client"), margin + 14, 193);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(55, 65, 81);
+
+    if (manualPreview.owner.email) {
+      doc.text(String(manualPreview.owner.email), margin + 14, 209);
+    }
+
+    if (manualPreview.owner.phone) {
+      doc.text(String(manualPreview.owner.phone), margin + 14, 223);
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...navy);
     doc.text(
-      "Temporary invoice — not saved to invoice history",
-      margin,
-      manualPreview.owner.email ? 145 : 130
+      `${formatDate(manualPreview.period_start)} - ${formatDate(manualPreview.period_end)}`,
+      pageWidth / 2 + 10,
+      196
     );
 
+    // Invoice line items
     const tableRows = manualPreview.items.map((item) => [
       formatDate(item.item_date),
       item.property_name,
       item.description,
       String(item.quantity),
-      formatMoney(item.unit_price),
-      formatMoney(item.amount),
+      money(item.unit_price),
+      money(item.amount),
     ]);
 
     autoTable(doc, {
-      startY: tableStartY,
-      head: [["Date", "Property", "Description", "Qty", "Unit price", "Amount"]],
+      startY: 258,
+      head: [[
+        "Date",
+        "Property",
+        "Description",
+        "Qty",
+        "Unit price",
+        "Amount",
+      ]],
       body: tableRows.length
         ? tableRows
-        : [["—", "—", "No billable items", "—", "—", formatMoney(0)]],
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 8, cellPadding: 5, overflow: "linebreak" },
-      headStyles: { fillColor: [31, 78, 121] },
+        : [["—", "—", "No billable items", "—", "—", money(0)]],
+      margin: { left: margin, right: margin, bottom: 130 },
+      styles: {
+        font: "helvetica",
+        fontSize: 8,
+        cellPadding: 6,
+        overflow: "linebreak",
+        textColor: [55, 65, 81],
+        lineColor: [226, 232, 240],
+        lineWidth: 0.35,
+      },
+      headStyles: {
+        fillColor: navy,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
       columnStyles: {
-        0: { cellWidth: 58 },
-        1: { cellWidth: 92 },
+        0: { cellWidth: 59 },
+        1: { cellWidth: 90 },
         2: { cellWidth: "auto" },
-        3: { cellWidth: 28, halign: "right" },
-        4: { cellWidth: 58, halign: "right" },
-        5: { cellWidth: 58, halign: "right" },
+        3: { cellWidth: 27, halign: "right" },
+        4: { cellWidth: 61, halign: "right" },
+        5: { cellWidth: 61, halign: "right" },
       },
     });
 
-    const finalY =
+    let y =
       (
         doc as jsPDF & {
           lastAutoTable?: { finalY: number };
         }
-      ).lastAutoTable?.finalY ?? 200;
+      ).lastAutoTable?.finalY ?? 270;
 
-    let y = finalY + 24;
-    const totalsX = pageWidth - margin;
+    y += 26;
 
-    doc.setFontSize(10);
-    doc.text(
-      `Cleaning: ${formatMoney(manualPreview.total_cleaning)}`,
-      totalsX,
-      y,
-      { align: "right" }
+    const cleaning = Number(manualPreview.total_cleaning || 0);
+    const expenses = Number(manualPreview.total_expenses || 0);
+    const subtotal = Number(manualPreview.subtotal || cleaning + expenses);
+    const hst = Number(manualPreview.hst_amount || 0);
+    const total = Number(manualPreview.total_due || subtotal + hst);
+
+    // Keep the summary together on a new page if needed
+    if (y + 112 > pageHeight - 70) {
+      doc.addPage();
+      y = 65;
+    }
+
+    const labelX = pageWidth - margin - 190;
+    const valueX = pageWidth - margin;
+
+    const drawTotalRow = (
+      label: string,
+      value: number,
+      bold = false
+    ) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      doc.setFontSize(bold ? 11 : 9);
+      doc.setTextColor(...(bold ? navy : muted));
+      doc.text(label, labelX, y);
+      doc.text(money(value), valueX, y, { align: "right" });
+      y += bold ? 25 : 19;
+    };
+
+    drawTotalRow("Cleaning services", cleaning);
+    drawTotalRow("Approved expenses", expenses);
+    drawTotalRow("Subtotal", subtotal);
+
+    drawTotalRow(
+      `HST (${manualPreview.hst_enabled ? "13%" : "not applied"})`,
+      hst
     );
-    y += 16;
 
-    doc.text(
-      `Approved expenses: ${formatMoney(manualPreview.total_expenses)}`,
-      totalsX,
-      y,
-      { align: "right" }
-    );
-    y += 16;
+    doc.setDrawColor(...blue);
+    doc.setLineWidth(1);
+    doc.line(labelX, y - 7, valueX, y - 7);
+    y += 7;
 
-    doc.text(
-      `Subtotal: ${formatMoney(manualPreview.subtotal)}`,
-      totalsX,
-      y,
-      { align: "right" }
-    );
-    y += 16;
-
-    doc.text(
-      `HST ${manualPreview.hst_enabled ? "(13%)" : "(not applied)"}: ${formatMoney(manualPreview.hst_amount)}`,
-      totalsX,
-      y,
-      { align: "right" }
-    );
-    y += 20;
+    doc.setFillColor(...navy);
+    doc.roundedRect(labelX - 10, y - 8, valueX - labelX + 20, 39, 5, 5, "F");
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.text(`TOTAL: ${formatMoney(manualPreview.total_due)}`, totalsX, y, {
-      align: "right",
-    });
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.text("TOTAL DUE", labelX, y + 16);
+    doc.setFontSize(15);
+    doc.text(money(total), valueX, y + 16, { align: "right" });
 
-    const safeClient =
-      manualPreview.owner.name
-        .replace(/[^a-z0-9-_]+/gi, "-")
-        .replace(/^-|-$/g, "") || "client";
+    // Footer on every page
+    const pageCount = doc.getNumberOfPages();
 
-    doc.save(
-      `PureSpace-Manual-Invoice-${safeClient}-${manualPreview.period_start}-to-${manualPreview.period_end}.pdf`
-    );
+    for (let page = 1; page <= pageCount; page++) {
+      doc.setPage(page);
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(margin, pageHeight - 43, pageWidth - margin, pageHeight - 43);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...muted);
+      doc.text(
+        "PureSpace Cleaning | Finance Department",
+        margin,
+        pageHeight - 27
+      );
+      doc.text(
+        "Thank you for choosing PureSpace Cleaning.",
+        pageWidth - margin,
+        pageHeight - 27,
+        { align: "right" }
+      );
+    }
+
+    const safeName = String(manualPreview.owner.name || "Client")
+      .replace(/[^a-z0-9-_]/gi, "_");
+
+    doc.save(`PureSpace-Invoice-${safeName}.pdf`);
   }
 
   async function handleToggleHst(invoice: Invoice) {
