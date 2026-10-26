@@ -1,3 +1,4 @@
+
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type GeneratePeriodInput = {
@@ -40,11 +41,10 @@ export async function generateInvoicesForPeriod({
     throw new Error("The invoice start date must be before the end date.");
   }
 
-  const { data: properties, error: propertiesError } =
-    await supabaseAdmin
-      .from("properties")
-      .select("id, name, address, owner_id")
-      .not("owner_id", "is", null);
+  const { data: properties, error: propertiesError } = await supabaseAdmin
+    .from("properties")
+    .select("id, name, address, owner_id")
+    .not("owner_id", "is", null);
 
   if (propertiesError) throw propertiesError;
 
@@ -53,44 +53,43 @@ export async function generateInvoicesForPeriod({
   for (const property of properties ?? []) {
     if (!property.owner_id) continue;
 
-    const { data: existingInvoice, error: existingError } =
-      await supabaseAdmin
-        .from("invoices")
-        .select("*")
-        .eq("property_id", property.id)
-        .eq("period_start", start)
-        .eq("period_end", end)
-        .maybeSingle();
+    const { data: existingInvoice, error: existingError } = await supabaseAdmin
+      .from("invoices")
+      .select("*")
+      .eq("property_id", property.id)
+      .eq("period_start", start)
+      .eq("period_end", end)
+      .maybeSingle();
 
     if (existingError) throw existingError;
 
-    const { data: schedules, error: schedulesError } =
-      await supabaseAdmin
-        .from("schedule")
-        .select("id, cleaning_date, company_charge, notes")
-        .eq("property_id", property.id)
-        .eq("status", "Completed")
-        .gte("cleaning_date", start)
-        .lte("cleaning_date", end)
-        .order("cleaning_date", { ascending: true });
+    const { data: schedules, error: schedulesError } = await supabaseAdmin
+      .from("schedule")
+      .select("id, cleaning_date, company_charge, notes")
+      .eq("property_id", property.id)
+      .eq("status", "Completed")
+      .gte("cleaning_date", start)
+      .lte("cleaning_date", end)
+      .order("cleaning_date", { ascending: true });
 
     if (schedulesError) throw schedulesError;
 
-    const { data: receipts, error: receiptsError } =
-      await supabaseAdmin
-        .from("receipts")
-        .select("id, schedule_id, purchase_date, amount, office_notes")
-        .eq("property_id", property.id)
-        .eq("status", "Approved")
-        .gte("purchase_date", start)
-        .lte("purchase_date", end)
-        .order("purchase_date", { ascending: true });
+    const { data: receipts, error: receiptsError } = await supabaseAdmin
+      .from("receipts")
+      .select("id, schedule_id, purchase_date, amount, office_notes")
+      .eq("property_id", property.id)
+      .eq("status", "Approved")
+      .gte("purchase_date", start)
+      .lte("purchase_date", end)
+      .order("purchase_date", { ascending: true });
 
     if (receiptsError) throw receiptsError;
 
-    // Don't zero an existing invoice if no source records are found.
+    // Preserve existing invoices if source rows are temporarily absent.
     if (!(schedules?.length) && !(receipts?.length)) {
-      if (existingInvoice) generated.push(existingInvoice);
+      if (existingInvoice) {
+        generated.push(existingInvoice as GeneratedInvoice);
+      }
       continue;
     }
 
@@ -105,69 +104,94 @@ export async function generateInvoicesForPeriod({
     );
 
     const items: InvoiceItemInput[] = [];
+    const scheduleIds = (schedules ?? []).map((schedule) =>
+      Number(schedule.id)
+    );
+    const extrasBySchedule = new Map<number, string[]>();
 
-    // Cleaning charges and extras are invoice details.
-    // company_charge already represents the cleaning charge;
-    // extras are not added a second time to the invoice total.
+    if (scheduleIds.length > 0) {
+      const { data: scheduleExtras, error: scheduleExtrasError } =
+        await supabaseAdmin
+          .from("schedule_extras")
+          .select("schedule_id, extra_id, custom_name")
+          .in("schedule_id", scheduleIds);
+
+      if (scheduleExtrasError) throw scheduleExtrasError;
+
+      const extraIds = Array.from(
+        new Set(
+          (scheduleExtras ?? [])
+            .map((extra) => Number(extra.extra_id))
+            .filter((id) => Number.isSafeInteger(id) && id > 0)
+        )
+      );
+
+      const extraNames = new Map<number, string>();
+
+      if (extraIds.length > 0) {
+        const { data: catalog, error: catalogError } =
+          await supabaseAdmin
+            .from("extras")
+            .select("id, name")
+            .in("id", extraIds);
+
+        if (catalogError) throw catalogError;
+
+        for (const extra of catalog ?? []) {
+          extraNames.set(Number(extra.id), String(extra.name ?? ""));
+        }
+      }
+
+      for (const scheduleExtra of scheduleExtras ?? []) {
+        const scheduleId = Number(scheduleExtra.schedule_id);
+        const name = String(
+          scheduleExtra.custom_name ||
+            extraNames.get(Number(scheduleExtra.extra_id)) ||
+            ""
+        ).trim();
+
+        if (!name) continue;
+
+        const current = extrasBySchedule.get(scheduleId) ?? [];
+
+        if (!current.includes(name)) current.push(name);
+
+        extrasBySchedule.set(scheduleId, current);
+      }
+    }
+
+    // company_charge is authoritative; extras are descriptive only
+    // to avoid charging for them twice.
     for (const schedule of schedules ?? []) {
       const amount = toNumber(schedule.company_charge);
+      const extras = extrasBySchedule.get(Number(schedule.id)) ?? [];
+
+      const descriptions = [
+        "Regular Cleaning",
+        ...(extras.length ? [`Extras: ${extras.join(", ")}`] : []),
+        schedule.notes ? `Notes: ${String(schedule.notes).trim()}` : "",
+      ].filter(Boolean);
 
       items.push({
         item_type: "cleaning",
-        schedule_id: schedule.id,
+        schedule_id: Number(schedule.id),
         receipt_id: null,
         item_date: schedule.cleaning_date,
-        description: "Regular Cleaning",
+        description: descriptions.join(" — "),
         quantity: 1,
         unit_price: amount,
         amount,
       });
-
-      const { data: scheduleExtras, error: extrasError } =
-        await supabaseAdmin
-          .from("schedule_extras")
-          .select("id, extra_id, quantity")
-          .eq("schedule_id", schedule.id);
-
-      if (extrasError) throw extrasError;
-
-      for (const scheduleExtra of scheduleExtras ?? []) {
-        if (scheduleExtra.extra_id == null) continue;
-
-        const { data: extra, error: extraError } =
-          await supabaseAdmin
-            .from("extras")
-            .select("id, name, owner_price")
-            .eq("id", Number(scheduleExtra.extra_id))
-            .maybeSingle();
-
-        if (extraError) throw extraError;
-        if (!extra) continue;
-
-        const quantity = toNumber(scheduleExtra.quantity ?? 1);
-        const unitPrice = toNumber(extra.owner_price);
-
-        items.push({
-          item_type: "extra",
-          schedule_id: schedule.id,
-          receipt_id: null,
-          item_date: schedule.cleaning_date,
-          description: extra.name,
-          quantity,
-          unit_price: unitPrice,
-          amount: unitPrice * quantity,
-        });
-      }
     }
 
-    // Approved expenses.
     for (const receipt of receipts ?? []) {
       const amount = toNumber(receipt.amount);
 
       items.push({
         item_type: "expense",
-        schedule_id: receipt.schedule_id ?? null,
-        receipt_id: receipt.id,
+        schedule_id:
+          receipt.schedule_id == null ? null : Number(receipt.schedule_id),
+        receipt_id: Number(receipt.id),
         item_date: receipt.purchase_date,
         description: receipt.office_notes || "Property Expense",
         quantity: 1,
@@ -177,10 +201,8 @@ export async function generateInvoicesForPeriod({
     }
 
     const propertyNumber = String(property.id).padStart(5, "0");
-    const invoiceNumber =
-      `PS-${end.replaceAll("-", "")}-${propertyNumber}`;
+    const invoiceNumber = `PS-${end.replaceAll("-", "")}-${propertyNumber}`;
 
-    // Preserve the existing invoice's tax setting when refreshing it.
     const effectiveHstEnabled = existingInvoice
       ? Boolean(existingInvoice.hst_enabled)
       : hstEnabled;
