@@ -75,6 +75,7 @@ export default function OfficeInvoicesPage() {
 
   const [selectedMonth, setSelectedMonth] =
     useState("all");
+  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
   const [customStart, setCustomStart] =
     useState("");
@@ -565,6 +566,7 @@ export default function OfficeInvoicesPage() {
         </div>
 
         {/* INVOICE GROUPS */}
+        {/* Monthly collapse state is managed by expandedMonths. */}
 
         {filteredGroups.length === 0 ? (
           <div className="rounded-[32px] border border-slate-100 bg-white p-16 text-center shadow-md">
@@ -580,7 +582,100 @@ export default function OfficeInvoicesPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {filteredGroups.map((group) => {
+            {Array.from(
+              new Set(
+                filteredGroups.flatMap((group) =>
+                  group.invoices
+                    .map((invoice) => invoice.period_end?.slice(0, 7) || "")
+                    .filter(Boolean)
+                )
+              )
+            ).sort((a, b) => b.localeCompare(a)).map((month) => {
+              const monthGroups = filteredGroups
+                .map((group) => ({
+                  ...group,
+                  invoices: group.invoices.filter(
+                    (invoice) => invoice.period_end?.slice(0, 7) === month
+                  ),
+                }))
+                .filter((group) => group.invoices.length > 0);
+
+              const isExpanded =
+                expandedMonths[month] ??
+                month === Array.from(
+                  new Set(
+                    filteredGroups.flatMap((group) =>
+                      group.invoices
+                        .map((invoice) => invoice.period_end?.slice(0, 7) || "")
+                        .filter(Boolean)
+                    )
+                  )
+                ).sort((a, b) => b.localeCompare(a))[0];
+
+              const [year, monthNumber] = month.split("-");
+              const monthLabel = new Date(
+                Number(year),
+                Number(monthNumber) - 1,
+                1
+              ).toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              });
+
+              const monthTotal = monthGroups.reduce(
+                (sum, group) =>
+                  sum + group.invoices.reduce(
+                    (invoiceSum, invoice) =>
+                      invoiceSum + Number(invoice.total_due || 0),
+                    0
+                  ),
+                0
+              );
+
+              const invoiceCount = monthGroups.reduce(
+                (sum, group) => sum + group.invoices.length,
+                0
+              );
+
+              return (
+                <section
+                  key={month}
+                  className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedMonths((current) => ({
+                        ...current,
+                        [month]: !isExpanded,
+                      }))
+                    }
+                    aria-expanded={isExpanded}
+                    className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition hover:bg-slate-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <ChevronRight
+                        className={`h-5 w-5 shrink-0 transition-transform ${
+                          isExpanded ? "rotate-90" : ""
+                        }`}
+                      />
+                      <div>
+                        <h2 className="text-xl font-bold text-[#1F4E79]">
+                          {monthLabel}
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {invoiceCount} {invoiceCount === 1 ? "invoice" : "invoices"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-lg font-bold text-[#2E7BBE]">
+                      {formatMoney(monthTotal)}
+                    </span>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="space-y-6 border-t border-slate-100 p-4 sm:p-6">
+                      {monthGroups.map((group) => {
               const groupTotal = group.invoices.reduce(
                 (sum, invoice) =>
                   sum + Number(invoice.total_due || 0),
@@ -901,6 +996,11 @@ export default function OfficeInvoicesPage() {
                     })}
                   </div>
                 </div>
+              );
+                      })}
+                    </div>
+                  )}
+                </section>
               );
             })}
           </div>
