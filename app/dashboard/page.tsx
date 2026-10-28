@@ -277,23 +277,7 @@ export default function DashboardPage() {
             </p>
           </a>
 
-          <a
-            href="/dashboard/extras"
-            className="group rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF4FE]">
-                <ClipboardList className="h-5 w-5 text-[#2E7BBE]" />
-              </div>
-              <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#2E7BBE]" />
-            </div>
-            <h3 className="mt-4 font-bold text-slate-800">
-              Extras & Pricing
-            </h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Create custom extras and manage customer charges and cleaner pay.
-            </p>
-          </a>
+
 
           <a
             href="/dashboard/maintenance"
