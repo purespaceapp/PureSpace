@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -5,11 +6,11 @@ import { useEffect, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
-  ClipboardList,
   FileText,
   Home,
   Users,
   Wrench,
+  UsersRound,
 } from "lucide-react";
 
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -23,20 +24,12 @@ import { getSchedules } from "@/lib/schedule";
 import { getMaintenanceIssues } from "@/lib/maintenance";
 
 export default function DashboardPage() {
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [properties, setProperties] =
-    useState<any[]>([]);
-
-  const [employees, setEmployees] =
-    useState<any[]>([]);
-
-  const [schedules, setSchedules] =
-    useState<any[]>([]);
-
-  const [issues, setIssues] =
-    useState<any[]>([]);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [issues, setIssues] = useState<any[]>([]);
 
   useEffect(() => {
     loadDashboard();
@@ -69,8 +62,7 @@ export default function DashboardPage() {
     }
   }
 
-  const today = new Date()
-    .toLocaleDateString("en-CA");
+  const today = new Date().toLocaleDateString("en-CA");
 
   const todaysJobs = schedules.filter(
     (schedule) =>
@@ -79,8 +71,7 @@ export default function DashboardPage() {
   );
 
   const openIssues = issues.filter(
-    (issue) =>
-      issue.status?.toLowerCase() === "open"
+    (issue) => issue.status?.toLowerCase() === "open"
   );
 
   if (loading) {
@@ -88,7 +79,6 @@ export default function DashboardPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#F4F7FB]">
         <div className="text-center">
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-[#2E7BBE] border-t-transparent" />
-
           <p className="mt-5 text-sm font-medium text-slate-500">
             Loading your dashboard...
           </p>
@@ -100,7 +90,8 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#F4F7FB]">
       <div className="mx-auto max-w-[1700px] space-y-6 px-5 py-6 md:px-8 md:py-8">
-        {/* COMPACT HERO */}
+
+        {/* COMMAND CENTER HERO */}
         <section className="relative overflow-hidden rounded-[30px] bg-gradient-to-r from-[#1F4E79] via-[#2E7BBE] to-[#66BDF0] px-7 py-8 text-white shadow-xl md:px-10 md:py-9">
           <div className="absolute -right-16 -top-24 h-72 w-72 rounded-full bg-white/10" />
           <div className="absolute bottom-[-100px] right-[22%] h-56 w-56 rounded-full bg-white/10" />
@@ -128,38 +119,33 @@ export default function DashboardPage() {
               </p>
 
               <p className="mt-1 text-xl font-bold">
-                {new Date().toLocaleDateString(
-                  "en-US",
-                  {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  }
-                )}
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
               </p>
             </div>
           </div>
         </section>
 
-        {/* STATS */}
+        {/* GLOBAL STATISTICS */}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
           <div className="rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                   Properties
                 </p>
-
                 <p className="mt-2 text-4xl font-black text-[#2E7BBE]">
                   {properties.length}
                 </p>
-
                 <p className="mt-1 text-sm text-slate-500">
                   Active properties
                 </p>
               </div>
-
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF4FE]">
                 <Home className="h-5 w-5 text-[#2E7BBE]" />
               </div>
@@ -172,16 +158,13 @@ export default function DashboardPage() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                   Employees
                 </p>
-
                 <p className="mt-2 text-4xl font-black text-[#2E7BBE]">
                   {employees.length}
                 </p>
-
                 <p className="mt-1 text-sm text-slate-500">
                   Active cleaners
                 </p>
               </div>
-
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF4FE]">
                 <Users className="h-5 w-5 text-[#2E7BBE]" />
               </div>
@@ -194,16 +177,13 @@ export default function DashboardPage() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                   Today's Jobs
                 </p>
-
                 <p className="mt-2 text-4xl font-black text-[#2E7BBE]">
                   {todaysJobs.length}
                 </p>
-
                 <p className="mt-1 text-sm text-slate-500">
                   Scheduled cleanings
                 </p>
               </div>
-
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF4FE]">
                 <CalendarDays className="h-5 w-5 text-[#2E7BBE]" />
               </div>
@@ -216,25 +196,24 @@ export default function DashboardPage() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                   Open Issues
                 </p>
-
                 <p className="mt-2 text-4xl font-black text-red-500">
                   {openIssues.length}
                 </p>
-
                 <p className="mt-1 text-sm text-slate-500">
                   Maintenance reports
                 </p>
               </div>
-
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50">
                 <Wrench className="h-5 w-5 text-red-500" />
               </div>
             </div>
           </div>
+
         </section>
 
         {/* QUICK ACCESS */}
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+
           <a
             href="/dashboard/schedule"
             className="group rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
@@ -243,14 +222,11 @@ export default function DashboardPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF4FE]">
                 <CalendarDays className="h-5 w-5 text-[#2E7BBE]" />
               </div>
-
               <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#2E7BBE]" />
             </div>
-
             <h3 className="mt-4 font-bold text-slate-800">
               Manage Schedule
             </h3>
-
             <p className="mt-1 text-sm text-slate-500">
               View and organize upcoming cleanings.
             </p>
@@ -264,20 +240,15 @@ export default function DashboardPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF4FE]">
                 <FileText className="h-5 w-5 text-[#2E7BBE]" />
               </div>
-
               <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#2E7BBE]" />
             </div>
-
             <h3 className="mt-4 font-bold text-slate-800">
               Invoice History
             </h3>
-
             <p className="mt-1 text-sm text-slate-500">
               Review owner billing and invoices.
             </p>
           </a>
-
-
 
           <a
             href="/dashboard/maintenance"
@@ -287,18 +258,35 @@ export default function DashboardPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF4FE]">
                 <Wrench className="h-5 w-5 text-[#2E7BBE]" />
               </div>
-
               <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#2E7BBE]" />
             </div>
-
             <h3 className="mt-4 font-bold text-slate-800">
               Maintenance
             </h3>
-
             <p className="mt-1 text-sm text-slate-500">
               Track reported property issues.
             </p>
           </a>
+
+          {/* NEW TEAM MANAGEMENT ACCESS */}
+          <a
+            href="/dashboard/teams"
+            className="group rounded-[24px] border border-[#D7E9F8] bg-gradient-to-br from-white to-[#EDF6FD] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#DCEEFF]">
+                <UsersRound className="h-5 w-5 text-[#2E7BBE]" />
+              </div>
+              <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#2E7BBE]" />
+            </div>
+            <h3 className="mt-4 font-bold text-[#1F4E79]">
+              Team Management
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Create teams and assign cleaners and properties.
+            </p>
+          </a>
+
         </section>
 
         {/* OPERATIONS */}
@@ -320,6 +308,7 @@ export default function DashboardPage() {
         <section>
           <MaintenancePanel issues={issues} />
         </section>
+
       </div>
     </div>
   );

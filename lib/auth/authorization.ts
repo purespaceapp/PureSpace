@@ -1,6 +1,8 @@
-import "server-only";
 
+import "server-only";
+import { createHash } from "node:crypto";
 import { getCurrentSession } from "@/lib/auth/session";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function requireOfficeSession() {
   const session = await getCurrentSession();
@@ -28,4 +30,85 @@ export async function requireOwnerSession() {
     role: "owner";
     ownerId: number;
   };
+}
+
+export async function requireTeamSession() {
+  const session = await getCurrentSession();
+
+  if (
+    !session ||
+    session.role !== "team" ||
+    !Number.isSafeInteger(session.teamId) ||
+    session.teamId! <= 0
+  ) {
+    return null;
+  }
+
+   const { data: team, error } = await supabaseAdmin
+    .from("teams")
+    .select("id, is_active, password_hash")
+    .eq("id", session.teamId)
+    .maybeSingle();
+
+  if (error || !team || !team.is_active) {
+    return null;
+  }
+
+  const currentAuthVersion = createHash("sha256")
+    .update(team.password_hash)
+    .digest("hex");
+
+  if (session.teamAuthVersion !== currentAuthVersion) {
+    return null;
+  }
+
+  return session as typeof session & {
+    role: "team";
+    teamId: number;
+  };
+}
+export async function requireCleanerSession() {
+  const session = await getCurrentSession();
+
+  if (
+    !session ||
+    session.role !== "cleaner" ||
+    !Number.isSafeInteger(session.employeeId) ||
+    session.employeeId! <= 0
+  ) {
+    return null;
+  }
+
+  const { data: employee, error } = await supabaseAdmin
+    .from("employees")
+    .select("id, status")
+    .eq("id", session.employeeId)
+    .maybeSingle();
+
+  if (error || !employee || employee.status === "Inactive") {
+    return null;
+  }
+
+  return session as typeof session & {
+    role: "cleaner";
+    employeeId: number;
+  };
+}
+
+export async function requireOfficeOrTeamSession() {
+  const session = await getCurrentSession();
+
+  if (!session) {
+    return null;
+  }
+
+  if (session.role === "office") {
+    return session;
+  }
+
+  if (session.role === "team") {
+    return await requireTeamSession();
+  }
+
+  return null;
 }

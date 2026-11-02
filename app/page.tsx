@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -17,9 +18,7 @@ export default function HomePage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#F4F8FC] text-[#132238]">
 
-      {/* ===================================================== */}
-      {/* BACKGROUND                                            */}
-      {/* ===================================================== */}
+      {/* BACKGROUND */}
 
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
 
@@ -29,7 +28,6 @@ export default function HomePage() {
 
         <div className="absolute bottom-[-250px] left-[35%] h-[600px] w-[600px] rounded-full bg-[#D8F1F1]/40 blur-3xl" />
 
-        {/* subtle grid */}
         <div
           className="absolute inset-0 opacity-[0.035]"
           style={{
@@ -41,15 +39,11 @@ export default function HomePage() {
 
       </div>
 
-      {/* ===================================================== */}
-      {/* PAGE                                                   */}
-      {/* ===================================================== */}
+      {/* PAGE */}
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-[1280px] flex-col px-6 py-6 md:px-10 lg:px-12">
 
-        {/* =================================================== */}
-        {/* NAVBAR                                              */}
-        {/* =================================================== */}
+        {/* NAVBAR */}
 
         <header className="flex items-center justify-between">
 
@@ -98,9 +92,7 @@ export default function HomePage() {
 
         </header>
 
-        {/* =================================================== */}
-        {/* HERO                                                 */}
-        {/* =================================================== */}
+        {/* HERO */}
 
         <section className="flex flex-1 flex-col justify-center">
 
@@ -171,9 +163,7 @@ export default function HomePage() {
                     {/* CLEANER */}
 
                     <button
-                      onClick={() =>
-                        router.push("/cleaner-login")
-                      }
+                      onClick={() => router.push("/cleaner-login")}
                       className="group flex w-full items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#B8DFDA] hover:shadow-lg"
                     >
 
@@ -203,12 +193,10 @@ export default function HomePage() {
 
                     </button>
 
-                    {/* OWNER */}
+                    {/* PROPERTY OWNER */}
 
                     <button
-                      onClick={() =>
-                        router.push("/owner-login")
-                      }
+                      onClick={() => router.push("/owner-login")}
                       className="group flex w-full items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#BBD8F1] hover:shadow-lg"
                     >
 
@@ -238,12 +226,10 @@ export default function HomePage() {
 
                     </button>
 
-                    {/* OFFICE */}
+                    {/* OFFICE — NEW ENTRY */}
 
                     <button
-                      onClick={() =>
-                        router.push("/office-login")
-                      }
+                      onClick={() => router.push("/office")}
                       className="group flex w-full items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D9D0F4] hover:shadow-lg"
                     >
 
@@ -260,7 +246,7 @@ export default function HomePage() {
                         </h3>
 
                         <p className="mt-0.5 text-xs leading-5 text-slate-500">
-                          Operations, employees & properties
+                          Command Center & Team Workspaces
                         </p>
 
                       </div>
@@ -285,9 +271,7 @@ export default function HomePage() {
 
         </section>
 
-        {/* =================================================== */}
-        {/* FOOTER                                               */}
-        {/* =================================================== */}
+        {/* FOOTER */}
 
         <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-200/70 py-5 text-xs text-slate-400 sm:flex-row">
 
