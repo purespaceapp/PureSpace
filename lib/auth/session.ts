@@ -235,3 +235,23 @@ export async function getCurrentSession(): Promise<SessionPayload | null> {
 
   return verifySessionToken(token);
 }
+
+export const teamSessionCookie = {
+  name: "purespace_team_session",
+  maxAge: SESSION_DURATION_SECONDS,
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: "/",
+};
+
+export async function getTeamSession(): Promise<SessionPayload | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(teamSessionCookie.name)?.value;
+
+  if (!token) return null;
+
+  const session = verifySessionToken(token);
+
+  return session?.role === "team" ? session : null;
+}

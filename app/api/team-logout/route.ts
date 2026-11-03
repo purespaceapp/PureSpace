@@ -1,5 +1,6 @@
 
 import { NextResponse } from "next/server";
+import { teamSessionCookie } from "@/lib/auth/session";
 
 export async function POST() {
   const response = NextResponse.json({
@@ -8,12 +9,8 @@ export async function POST() {
   });
 
   response.cookies.set({
-    name: "purespace_session",
+    ...teamSessionCookie,
     value: "",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
     maxAge: 0,
     expires: new Date(0),
   });

@@ -1,7 +1,10 @@
 
 import "server-only";
 import { createHash } from "node:crypto";
-import { getCurrentSession } from "@/lib/auth/session";
+import {
+  getCurrentSession,
+  getTeamSession,
+} from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function requireOfficeSession() {
@@ -33,18 +36,17 @@ export async function requireOwnerSession() {
 }
 
 export async function requireTeamSession() {
-  const session = await getCurrentSession();
+  const session = await getTeamSession();
 
   if (
     !session ||
-    session.role !== "team" ||
     !Number.isSafeInteger(session.teamId) ||
     session.teamId! <= 0
   ) {
     return null;
   }
 
-   const { data: team, error } = await supabaseAdmin
+  const { data: team, error } = await supabaseAdmin
     .from("teams")
     .select("id, is_active, password_hash")
     .eq("id", session.teamId)
@@ -67,6 +69,7 @@ export async function requireTeamSession() {
     teamId: number;
   };
 }
+
 export async function requireCleanerSession() {
   const session = await getCurrentSession();
 
@@ -96,19 +99,11 @@ export async function requireCleanerSession() {
 }
 
 export async function requireOfficeOrTeamSession() {
-  const session = await getCurrentSession();
+  const officeSession = await getCurrentSession();
 
-  if (!session) {
-    return null;
+  if (officeSession?.role === "office") {
+    return officeSession;
   }
 
-  if (session.role === "office") {
-    return session;
-  }
-
-  if (session.role === "team") {
-    return await requireTeamSession();
-  }
-
-  return null;
+  return await requireTeamSession();
 }

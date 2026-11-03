@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import {
   createHash,
@@ -9,7 +10,7 @@ import { promisify } from "node:util";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   createSessionToken,
-  sessionCookie,
+  teamSessionCookie,
 } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -104,17 +105,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-   const teamAuthVersion = createHash("sha256")
-  .update(team.password_hash)
-  .digest("hex");
-const token = createSessionToken("team", undefined, team.id, teamAuthVersion);
+    const teamAuthVersion = createHash("sha256")
+      .update(team.password_hash)
+      .digest("hex");
+
+    const token = createSessionToken(
+      "team",
+      undefined,
+      team.id,
+      teamAuthVersion
+    );
+
     const response = NextResponse.json({
       success: true,
       message: "Team access verified.",
     });
 
     response.cookies.set({
-      ...sessionCookie,
+      ...teamSessionCookie,
       value: token,
     });
 
