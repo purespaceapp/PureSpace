@@ -25,7 +25,7 @@ import {
   CookingPot,
   WashingMachine,
 } from "lucide-react";
-type InventoryUnit = "Box" | "Unit";
+type InventoryUnit = "Box" | "Unit" | "Gallon";
 type InventoryStatus = "Sufficient" | "Restock" | "Out of stock";
 
 type InventoryValue = {
@@ -530,8 +530,9 @@ const renderInventorySection = (
                   onChange={(e) => updateInventory(item, "unit", e.target.value as InventoryUnit)}
                   className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 text-sm font-bold text-[#172A3F]"
                 >
-                  <option value="Box">Box</option>
                   <option value="Unit">Unit</option>
+                  <option value="Box">Box</option>
+                  <option value="Gallon">Gallon</option>
                 </select>
               </label>
 
@@ -603,8 +604,9 @@ const renderCleanerSuppliesSection = () => (
                   onChange={(e) => updateCleanerSupply(item, "unit", e.target.value as InventoryUnit)}
                   className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 text-sm font-bold text-[#172A3F]"
                 >
-                  <option value="Box">Box</option>
                   <option value="Unit">Unit</option>
+                  <option value="Box">Box</option>
+                  <option value="Gallon">Gallon</option>
                 </select>
               </label>
 
@@ -915,46 +917,45 @@ const renderCleanerSuppliesSection = () => (
         </div>
 
         {/* =================================================== */}
-        {/* NOTES                                               */}
-        {/* =================================================== */}
-
-        <section className="mt-5 rounded-[26px] border border-slate-100 bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.05)] sm:mt-6 sm:p-6">
-
-          <div className="flex items-center gap-3">
-
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-
-              <StickyNote className="h-5 w-5" />
-
+        {/* NOTES */}
+        <section className="mt-6 overflow-hidden rounded-[26px] border-2 border-amber-200 bg-amber-50 shadow-[0_10px_30px_rgba(217,119,6,0.10)] sm:mt-7">
+          <div className="flex items-center gap-4 border-b border-amber-200 bg-gradient-to-r from-amber-100 to-yellow-50 px-5 py-5 sm:px-6">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-200 text-amber-800 shadow-sm">
+              <StickyNote className="h-7 w-7" />
             </div>
 
-            <div>
-
-              <h2 className="font-bold text-[#172A3F]">
-                Notes
-              </h2>
-
-              <p className="text-xs text-slate-500">
-                Add anything the office should know.
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-extrabold text-amber-950 sm:text-xl">
+                  Notes & Observations
+                </h2>
+                <span className="rounded-full bg-amber-600 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white">
+                  Important
+                </span>
+              </div>
+              <p className="mt-1 text-xs font-medium leading-5 text-amber-800 sm:text-sm">
+                Report anything the office needs to know about this property.
               </p>
-
             </div>
-
           </div>
 
-          <textarea
-            value={notes}
-            onChange={(e) =>
-              setNotes(e.target.value)
-            }
-            rows={4}
-            className="mt-4 w-full resize-none rounded-2xl border border-slate-200 bg-[#F8FAFC] p-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#2E7BBE] focus:ring-2 focus:ring-[#2E7BBE]/15"
-            placeholder="Write any observations..."
-          />
-
+          <div className="p-5 sm:p-6">
+            <label className="mb-2 block text-sm font-bold text-amber-950">
+              What should we know?
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={5}
+              className="w-full resize-y rounded-2xl border-2 border-amber-200 bg-white p-4 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+              placeholder="Write about missing supplies, damaged items, maintenance issues, or anything important..."
+            />
+            <p className="mt-2 text-xs font-medium text-amber-800">
+              Please include important observations before submitting the inventory.
+            </p>
+          </div>
         </section>
 
-        {/* =================================================== */}
         {/* DESKTOP ACTIONS                                     */}
         {/* =================================================== */}
 

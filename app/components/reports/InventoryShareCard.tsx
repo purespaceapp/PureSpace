@@ -12,7 +12,7 @@ import {
   StickyNote,
 } from "lucide-react";
 
-type InventoryUnit = "Box" | "Unit";
+type InventoryUnit = "Box" | "Unit" | "Gallon";
 type InventoryStatus = "Sufficient" | "Restock" | "Out of stock";
 
 type InventoryValue = {
