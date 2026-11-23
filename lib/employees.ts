@@ -1,3 +1,4 @@
+
 export async function getEmployees() {
   const response = await fetch("/api/employees", {
     method: "POST",
@@ -22,6 +23,7 @@ export async function saveEmployee(employee: {
   name: string;
   phone: string;
   email: string;
+  address: string;
   pin: string;
   status: string;
   notes: string;
@@ -37,11 +39,11 @@ export async function saveEmployee(employee: {
     }),
   });
 
-  if (!response.ok) {
-    throw new Error("Unable to create employee");
-  }
-
   const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Unable to create employee");
+  }
 
   return result.data;
 }
@@ -52,6 +54,7 @@ export async function updateEmployee(
     name: string;
     phone: string;
     email: string;
+    address: string;
     pin: string;
     status: string;
     notes: string;
@@ -69,11 +72,11 @@ export async function updateEmployee(
     }),
   });
 
-  if (!response.ok) {
-    throw new Error("Unable to update employee");
-  }
-
   const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Unable to update employee");
+  }
 
   return result.data;
 }

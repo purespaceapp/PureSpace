@@ -35,11 +35,16 @@ export async function POST(request: Request) {
 
       const { data: employee, error } = await supabaseAdmin
         .from("employees")
-        .select("id, name, phone, email, status, notes, pin")
+        .select("id, name, phone, email, address, status, notes, pin")
         .eq("id", employeeId)
         .maybeSingle();
 
-      if (error || !employee || employee.pin !== pin || employee.status === "Inactive") {
+      if (
+        error ||
+        !employee ||
+        employee.pin !== pin ||
+        employee.status === "Inactive"
+      ) {
         return NextResponse.json({ success: false }, { status: 401 });
       }
 
@@ -75,7 +80,7 @@ export async function POST(request: Request) {
     if (action === "list") {
       const { data, error } = await supabaseAdmin
         .from("employees")
-        .select("id, name, phone, email, status, notes")
+        .select("id, name, phone, email, address, status, notes")
         .order("name");
 
       if (error) {
@@ -87,15 +92,23 @@ export async function POST(request: Request) {
     }
 
     if (action === "create") {
+      const employee = {
+        ...body.employee,
+        address: String(body.employee?.address ?? "").trim(),
+      };
+
       const { data, error } = await supabaseAdmin
         .from("employees")
-        .insert([body.employee])
-        .select("id, name, phone, email, status, notes")
+        .insert([employee])
+        .select("id, name, phone, email, address, status, notes")
         .single();
 
       if (error) {
         console.error("Employee create error:", error);
-        return NextResponse.json({ success: false }, { status: 500 });
+        return NextResponse.json(
+          { success: false, error: error.message },
+          { status: 500 }
+        );
       }
 
       return NextResponse.json({ success: true, data });
@@ -109,8 +122,10 @@ export async function POST(request: Request) {
       }
 
       const { pin, ...employeeUpdates } = body.employee ?? {};
+
       const updates = {
         ...employeeUpdates,
+        address: String(employeeUpdates.address ?? "").trim(),
         ...(typeof pin === "string" && pin.trim() ? { pin } : {}),
       };
 
@@ -118,12 +133,15 @@ export async function POST(request: Request) {
         .from("employees")
         .update(updates)
         .eq("id", employeeId)
-        .select("id, name, phone, email, status, notes")
+        .select("id, name, phone, email, address, status, notes")
         .single();
 
       if (error) {
         console.error("Employee update error:", error);
-        return NextResponse.json({ success: false }, { status: 500 });
+        return NextResponse.json(
+          { success: false, error: error.message },
+          { status: 500 }
+        );
       }
 
       return NextResponse.json({ success: true, data });
